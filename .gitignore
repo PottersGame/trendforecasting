@@ -1,0 +1,16 @@
+data/*.db
+data/
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+env/
+*.egg
+gunicorn.ctl
+*.log
