@@ -104,6 +104,7 @@ from app.ai.fashion_analyzer import (
 )
 from app import database as db
 from app.utils import cache
+from app.api.auth import require_api_key
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -437,6 +438,7 @@ def pinterest_boards():
 # ── SEARCH (RAG) ───────────────────────────────────────────────────────────────
 
 @api_bp.route('/search')
+@require_api_key
 def search():
     """
     Search our DB for a query, inject results into the LLM, return AI analysis.
@@ -515,18 +517,21 @@ def forecast_single(name):
 # ── AI ─────────────────────────────────────────────────────────────────────────
 
 @api_bp.route('/ai/trend/<path:name>')
+@require_api_key
 def ai_trend(name):
     text, model = analyse_trend(name)
     return jsonify({'trend': name, 'analysis': text, 'model': model})
 
 
 @api_bp.route('/ai/tip/<path:name>')
+@require_api_key
 def ai_tip(name):
     text, model = generate_style_tip(name)
     return jsonify({'trend': name, 'tip': text, 'model': model})
 
 
 @api_bp.route('/ai/overview')
+@require_api_key
 def ai_overview():
     text_pool = _cached_text_pool()
     trends    = score_trends(text_pool)
@@ -535,6 +540,7 @@ def ai_overview():
 
 
 @api_bp.route('/ai/season')
+@require_api_key
 def ai_season():
     season = request.args.get('season', get_current_season())
     text, model = analyse_seasonal_outlook(season)
@@ -542,6 +548,7 @@ def ai_season():
 
 
 @api_bp.route('/ai/news-analysis')
+@require_api_key
 def ai_news():
     news_data = get_fashion_news(limit=20)
     headlines = [a['title'] for a in news_data]
@@ -550,6 +557,7 @@ def ai_news():
 
 
 @api_bp.route('/ai/models')
+@require_api_key
 def ai_models():
     """List available Ollama models on the local instance."""
     host   = current_app.config.get('OLLAMA_HOST', 'http://localhost:11434')
@@ -572,6 +580,7 @@ def db_stats():
 
 
 @api_bp.route('/db/ingest', methods=['POST', 'GET'])
+@require_api_key
 def db_ingest():
     """
     Trigger a full data ingest: fetch all sources, save to DB,

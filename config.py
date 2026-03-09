@@ -38,3 +38,12 @@ class Config:
 
     # Number of results per source
     MAX_RESULTS = int(os.environ.get('MAX_RESULTS', '50'))
+
+    # API key that protects AI and ingest endpoints from public access.
+    # Leave empty to run open (dev mode).  Generate one with:
+    #   python -c "import secrets; print(secrets.token_urlsafe(32))"
+    APP_API_KEY = os.environ.get('APP_API_KEY', '').strip()
+
+    # How often (in minutes) to automatically ingest data in the background.
+    # 0 = disabled.  Recommended: 120 (every 2 hours).
+    SCRAPE_INTERVAL_MINUTES = int(os.environ.get('SCRAPE_INTERVAL_MINUTES', '0'))

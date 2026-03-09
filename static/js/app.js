@@ -37,10 +37,66 @@ function makeChart(id, config) {
   return chartInstances[id];
 }
 
+// ── API key management ───────────────────────────────────────────────────────
+const API_KEY_STORAGE = 'runway_api_key';
+
+function getApiKey() {
+  return localStorage.getItem(API_KEY_STORAGE) || '';
+}
+
+function setApiKey(key) {
+  if (key) {
+    localStorage.setItem(API_KEY_STORAGE, key);
+  } else {
+    localStorage.removeItem(API_KEY_STORAGE);
+  }
+}
+
+function openKeyModal(message) {
+  const modal   = document.getElementById('apiKeyModal');
+  const msgEl   = document.getElementById('apiKeyMessage');
+  const inputEl = document.getElementById('apiKeyInput');
+  if (!modal) return;
+  if (message && msgEl) msgEl.textContent = message;
+  if (inputEl) inputEl.value = getApiKey();
+  modal.classList.remove('hidden');
+}
+
+function closeKeyModal() {
+  const modal = document.getElementById('apiKeyModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+document.getElementById('apiKeySaveBtn')?.addEventListener('click', () => {
+  const inputEl = document.getElementById('apiKeyInput');
+  const key = inputEl ? inputEl.value.trim() : '';
+  setApiKey(key);
+  closeKeyModal();
+  // Reload current section so protected content now loads.
+  Object.keys(sectionLoaded).forEach(k => sectionLoaded[k] = false);
+  showSection(currentSection());
+});
+
+document.getElementById('apiKeyCancelBtn')?.addEventListener('click', closeKeyModal);
+
+document.getElementById('apiKeyBtn')?.addEventListener('click', () => {
+  openKeyModal('Enter your API key (set via the APP_API_KEY env var on the server).');
+});
+
 // ── API helper ──────────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
   try {
+    const key = getApiKey();
+    if (key) {
+      const headers = new Headers(opts.headers || {});
+      headers.set('Authorization', 'Bearer ' + key);
+      opts = { ...opts, headers };
+    }
     const res = await fetch('/api' + path, opts);
+    if (res.status === 401) {
+      openKeyModal('Your API key is missing or incorrect. Enter it below to access AI features.');
+      return null;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
