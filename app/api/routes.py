@@ -572,16 +572,18 @@ def ai_news():
 @api_bp.route('/ai/models')
 @require_api_key
 def ai_models():
-    """List available Ollama models on the local instance."""
+    """List available AI models and their status."""
     host   = current_app.config.get('OLLAMA_HOST', 'http://localhost:11434')
     models = get_ollama_models(host)
     return jsonify({
-        'ollama_host':    host,
-        'ollama_model':   current_app.config.get('OLLAMA_MODEL', 'llama3'),
-        'available':      models,
-        'groq_enabled':   bool(current_app.config.get('GROQ_API_KEY')),
-        'openai_enabled': bool(current_app.config.get('OPENAI_API_KEY')),
-        'ollama_running': bool(models),
+        'ollama_host':      host,
+        'ollama_model':     current_app.config.get('OLLAMA_MODEL', 'llama3'),
+        'available':        models,
+        'groq_enabled':     bool(current_app.config.get('GROQ_API_KEY')),
+        'gemini_enabled':   bool(current_app.config.get('GEMINI_API_KEY')),
+        'openai_enabled':   bool(current_app.config.get('OPENAI_API_KEY')),
+        'ollama_running':   bool(models),
+        'priority_chain':   ['groq', 'gemini', 'openai', 'ollama', 'rule-based'],
     })
 
 
@@ -648,3 +650,84 @@ def sources():
         except Exception:
             results[name] = False
     return jsonify(results)
+
+
+# ── API KEY MANAGEMENT ─────────────────────────────────────────────────────────
+
+@api_bp.route('/keys/register', methods=['POST'])
+def keys_register():
+    """
+    Register a new API user and return their key.
+    Body: { "email": "user@example.com", "plan": "free" }
+    """
+    import secrets as _secrets
+    data  = request.get_json(silent=True) or {}
+    email = (data.get('email') or request.form.get('email', '')).strip().lower()
+    plan  = (data.get('plan')  or request.form.get('plan', 'free')).strip().lower()
+
+    if not email or '@' not in email:
+        return jsonify({'error': 'A valid email address is required.'}), 400
+
+    if plan not in ('free', 'pro', 'enterprise'):
+        plan = 'free'
+
+    # Check for existing user
+    existing = db.get_api_user_by_email(email)
+    if existing:
+        return jsonify({
+            'error': 'Email already registered.',
+            'message': 'An API key already exists for this email. Contact support to retrieve it.',
+        }), 409
+
+    api_key = 'rw_' + _secrets.token_urlsafe(32)
+    user = db.create_api_user(email, api_key, plan)
+    if not user:
+        return jsonify({'error': 'Registration failed. Please try again.'}), 500
+
+    daily_limit = user['daily_limit']
+    return jsonify({
+        'success': True,
+        'email':       email,
+        'api_key':     api_key,
+        'plan':        plan,
+        'daily_limit': daily_limit,
+        'message': (
+            f'Welcome! Your {"free" if plan == "free" else plan} API key has been created. '
+            f'You can make {daily_limit if daily_limit else "unlimited"} requests per day. '
+            'Pass the key in the "X-API-Key" header or as "Authorization: Bearer <key>".'
+        ),
+    }), 201
+
+
+@api_bp.route('/keys/verify', methods=['GET', 'POST'])
+def keys_verify():
+    """Verify an API key and return usage info."""
+    from app.api.auth import _extract_token
+    token = _extract_token()
+    if not token:
+        # Also accept ?key= query param for convenience
+        token = request.args.get('key', '').strip()
+
+    if not token:
+        return jsonify({'error': 'No API key provided.'}), 400
+
+    user = db.get_api_user_by_key(token)
+    if not user:
+        return jsonify({'valid': False, 'error': 'API key not found.'}), 404
+
+    return jsonify({
+        'valid':          True,
+        'plan':           user['plan'],
+        'requests_today': user['requests_today'],
+        'daily_limit':    user['daily_limit'],
+        'created_at':     user['created_at'],
+        'last_used':      user.get('last_used'),
+    })
+
+
+@api_bp.route('/keys/stats')
+@require_api_key
+def keys_stats():
+    """Admin: summary of all registered API users."""
+    return jsonify(db.get_api_users_stats())
+

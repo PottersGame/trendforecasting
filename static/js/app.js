@@ -10,13 +10,13 @@
 
 // ── Chart defaults ──────────────────────────────────────────────────────────
 const PALETTE = [
-  '#d4a574','#c9435e','#8fae8c','#4a6fa5','#c57e3e',
-  '#9b72cf','#e8c99a','#f07b91','#5cb8b2','#e0a458',
-  '#7b9ea3','#c4856a',
+  '#a855f7','#22d3ee','#ec4899','#3b82f6','#f59e0b',
+  '#10b981','#c084fc','#67e8f9','#f9a8d4','#818cf8',
+  '#34d399','#fb7185',
 ];
 
-Chart.defaults.color        = '#a09a94';
-Chart.defaults.borderColor  = '#2a2a30';
+Chart.defaults.color        = '#9d99b8';
+Chart.defaults.borderColor  = '#1e1e30';
 Chart.defaults.font.family  = "'Inter', sans-serif";
 Chart.defaults.font.size    = 12;
 
@@ -897,8 +897,9 @@ async function loadAI() {
     if (models) {
       const indicator = document.getElementById('aiModelIndicator');
       if (indicator) {
-        const active = models.groq_enabled  ? 'Groq (llama3-8b)'
-                     : models.openai_enabled ? 'OpenAI (gpt-3.5)'
+        const active = models.groq_enabled   ? 'Groq (llama3-8b)'
+                     : models.gemini_enabled  ? 'Gemini (gemini-1.5-flash)'
+                     : models.openai_enabled  ? 'OpenAI (gpt-3.5)'
                      : models.ollama_running  ? `Ollama (${models.ollama_model})`
                      : 'Rule-based (no LLM configured)';
         indicator.textContent = `Active model: ${active}`;

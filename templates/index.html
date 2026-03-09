@@ -37,7 +37,8 @@
   <div class="sidebar-footer">
     <div class="season-badge" id="seasonBadge">— Season —</div>
     <button class="ingest-btn" data-action="ingest">⬇ Ingest Data</button>
-    <p class="sidebar-credit">Sources: Vogue · Elle · WWD · Hypebeast<br>Reddit · Google Trends · Wikipedia</p>
+    <a href="/keys" class="ingest-btn" style="display:block;text-align:center;text-decoration:none;margin-top:8px">🔑 API Keys</a>
+    <p class="sidebar-credit">Sources: Vogue · Elle · WWD · Hypebeast<br>GQ · Highsnobiety · The Cut · Nylon<br>Reddit · Google Trends · Wikipedia</p>
   </div>
 </aside>
 
@@ -317,6 +318,13 @@
       </div>
       <p id="aiTrendText">Select a trend above and click Analyse.</p>
       <div class="ai-tip" id="aiStyleTip"></div>
+    </div>
+    <div class="db-ingest-banner mt-md" style="margin-top:20px">
+      <div class="ingest-info">
+        <strong>Powered by:</strong> Groq (llama3) → Google Gemini (gemini-1.5-flash) → OpenAI → Ollama → Rule-based fallback.
+        Set <code>GROQ_API_KEY</code>, <code>GEMINI_API_KEY</code>, or <code>OPENAI_API_KEY</code> for live AI analysis.
+      </div>
+      <a href="/keys" class="search-btn" style="text-decoration:none;display:inline-block">🔑 Get API Key</a>
     </div>
   </section>
 

@@ -59,6 +59,13 @@ def create_app(config_class=Config):
 
     CORS(app)
 
+    # Gzip/Brotli response compression for faster page loads
+    try:
+        from flask_compress import Compress
+        Compress(app)
+    except ImportError:
+        pass
+
     from app.api.routes import api_bp
     app.register_blueprint(api_bp)
 

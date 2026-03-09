@@ -2,10 +2,11 @@
 Fashion AI Analyst.
 
 LLM priority chain (first available wins):
-  1. Groq API  (llama3-8b-8192)      — set GROQ_API_KEY
-  2. OpenAI    (gpt-3.5-turbo)       — set OPENAI_API_KEY
-  3. Ollama    (local, any model)    — set OLLAMA_HOST / OLLAMA_MODEL (default llama3)
-  4. Rule-based fallback             — always available, no keys needed
+  1. Groq API       (llama3-8b-8192)      — set GROQ_API_KEY
+  2. Google Gemini  (gemini-1.5-flash)     — set GEMINI_API_KEY (free tier)
+  3. OpenAI         (gpt-3.5-turbo)        — set OPENAI_API_KEY
+  4. Ollama         (local, any model)     — set OLLAMA_HOST / OLLAMA_MODEL
+  5. Rule-based fallback                   — always available, no keys needed
 
 Every LLM call is augmented with RAG context fetched from the local SQLite
 database before the prompt is sent, giving the model grounding in actual
@@ -71,10 +72,26 @@ def _ollama(prompt: str, host: str, model: str) -> str:
     return r.json()['message']['content'].strip()
 
 
+def _gemini(prompt: str, api_key: str) -> str:
+    """Call Google Gemini via REST API (free tier — no SDK required)."""
+    url = (
+        f'https://generativelanguage.googleapis.com/v1beta/models/'
+        f'gemini-1.5-flash:generateContent?key={api_key}'
+    )
+    payload = {
+        'contents': [{'parts': [{'text': f'{_SYSTEM}\n\n{prompt}'}]}],
+        'generationConfig': {'maxOutputTokens': 450, 'temperature': 0.7},
+    }
+    r = requests.post(url, json=payload, timeout=20)
+    r.raise_for_status()
+    return r.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+
+
 def _llm(prompt: str) -> Tuple[str, str]:
-    """Try Groq → OpenAI → Ollama in order. Returns (text, model_name)."""
+    """Try Groq → Gemini → OpenAI → Ollama in order. Returns (text, model_name)."""
     from flask import current_app
     groq_key     = current_app.config.get('GROQ_API_KEY', '')
+    gemini_key   = current_app.config.get('GEMINI_API_KEY', '')
     openai_key   = current_app.config.get('OPENAI_API_KEY', '')
     ollama_host  = current_app.config.get('OLLAMA_HOST', 'http://localhost:11434')
     ollama_model = current_app.config.get('OLLAMA_MODEL', 'llama3')
@@ -82,6 +99,11 @@ def _llm(prompt: str) -> Tuple[str, str]:
     if groq_key:
         try:
             return _groq(prompt, groq_key), 'groq/llama3-8b'
+        except Exception:
+            pass
+    if gemini_key:
+        try:
+            return _gemini(prompt, gemini_key), 'gemini/gemini-1.5-flash'
         except Exception:
             pass
     if openai_key:

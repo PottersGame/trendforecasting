@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Keys — RUNWAY AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/landing.css" />
+  <style>
+    .keys-page {
+      min-height: 100vh;
+      padding-top: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .keys-hero {
+      text-align: center;
+      padding: 60px 32px 0;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .keys-hero h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(32px, 4vw, 52px);
+      font-weight: 900;
+      color: var(--text-1);
+      margin-bottom: 16px;
+    }
+    .keys-hero p {
+      font-size: 16px;
+      color: var(--text-2);
+      margin-bottom: 40px;
+      line-height: 1.7;
+    }
+    .tabs {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+    .tab-btn {
+      padding: 9px 22px;
+      border: 1px solid var(--border-2);
+      background: transparent;
+      color: var(--text-2);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: var(--font-sans);
+    }
+    .tab-btn.active, .tab-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .tab-btn.active {
+      background: rgba(168,85,247,.1);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .form-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(168,85,247,.2);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 520px;
+      margin: 0 auto 60px;
+      width: 90vw;
+    }
+    .form-card h2 {
+      font-family: var(--font-serif);
+      font-size: 22px;
+      color: var(--text-1);
+      margin-bottom: 8px;
+    }
+    .form-card .form-sub {
+      font-size: 14px;
+      color: var(--text-2);
+      margin-bottom: 24px;
+    }
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: var(--text-2);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 11px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border-2);
+      border-radius: 8px;
+      color: var(--text-1);
+      font-size: 14px;
+      font-family: var(--font-sans);
+      outline: none;
+      transition: border-color .2s;
+    }
+    .form-group input:focus,
+    .form-group select:focus { border-color: var(--accent); }
+    .form-group input::placeholder { color: var(--text-3); }
+    .form-group select option { background: var(--bg-2); }
+    .form-submit {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .2s, box-shadow .2s;
+      box-shadow: 0 4px 20px rgba(168,85,247,.3);
+      margin-top: 8px;
+      font-family: var(--font-sans);
+    }
+    .form-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 28px rgba(168,85,247,.45);
+    }
+    .form-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+    .result-block {
+      margin-top: 20px;
+      padding: 20px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .result-block h3 {
+      font-size: 14px;
+      color: var(--text-2);
+      margin-bottom: 10px;
+      font-weight: 600;
+      letter-spacing: .5px;
+    }
+    .key-box {
+      font-family: monospace;
+      font-size: 13px;
+      color: var(--cyan);
+      word-break: break-all;
+      line-height: 1.6;
+      padding: 12px;
+      background: rgba(34,211,238,.05);
+      border-radius: 8px;
+      border: 1px solid rgba(34,211,238,.15);
+    }
+    .copy-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .copy-btn {
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid var(--border-2);
+      color: var(--text-2);
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: var(--font-sans);
+    }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .usage-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .usage-stat {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+    .usage-stat-num {
+      font-family: var(--font-serif);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .usage-stat-label {
+      font-size: 11px;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+    .msg-success {
+      color: #10b981;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+    .msg-error {
+      color: var(--pink);
+      font-size: 13px;
+      margin-top: 10px;
+      padding: 10px 14px;
+      background: rgba(236,72,153,.08);
+      border-radius: 8px;
+    }
+    .hidden { display: none !important; }
+    .code-example {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    .code-example h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-2);
+      margin-bottom: 12px;
+      letter-spacing: .5px;
+    }
+    .code-example pre {
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--text-2);
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .code-example code { color: var(--cyan); }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">
+      <span class="logo-gem">✦</span>
+      <span class="logo-name">RUNWAY AI</span>
+    </a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/dashboard" class="btn-outline">Dashboard →</a>
+    </div>
+  </div>
+</nav>
+
+<div class="keys-page">
+  <div class="keys-hero">
+    <div class="section-label">API ACCESS</div>
+    <h1>Your <em>API Key</em> Portal</h1>
+    <p>Generate, verify, and manage your RUNWAY AI API keys. All plans start free — no credit card required.</p>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="register">Get New Key</button>
+      <button class="tab-btn" data-tab="verify">Verify Key</button>
+      <button class="tab-btn" data-tab="docs">API Docs</button>
+    </div>
+  </div>
+
+  <!-- ── REGISTER TAB ── -->
+  <div class="tab-panel active" id="tab-register">
+    <div class="form-card">
+      <h2>Register for an API Key</h2>
+      <p class="form-sub">Enter your email to get started instantly. Free keys allow 100 requests/day.</p>
+      <form id="regForm">
+        <div class="form-group">
+          <label for="email">Email address</label>
+          <input type="email" id="email" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label for="plan">Plan</label>
+          <select id="plan">
+            <option value="free">Free — 100 requests/day</option>
+            <option value="pro">Pro — 5,000 req/day (billing coming soon)</option>
+          </select>
+        </div>
+        <button type="submit" class="form-submit" id="regBtn">Generate API Key →</button>
+      </form>
+      <div id="regError" class="msg-error hidden"></div>
+      <div id="regSuccess" class="hidden">
+        <div class="result-block">
+          <h3>🔑 YOUR NEW API KEY</h3>
+          <div class="key-box" id="newKeyDisplay"></div>
+          <div class="copy-row">
+            <button class="copy-btn" id="copyNewKey">📋 Copy Key</button>
+            <a href="/dashboard" class="btn-outline" style="font-size:13px;padding:8px 16px">Open Dashboard →</a>
+          </div>
+        </div>
+        <p id="regPlanInfo" class="msg-success"></p>
+        <div class="code-example">
+          <h4>USAGE EXAMPLE</h4>
+          <pre><code>curl -H "X-API-Key: YOUR_KEY" \
+  https://runwayai.io/api/trends</code>
+
+<code># Python
+import requests
+headers = {"X-API-Key": "YOUR_KEY"}
+resp = requests.get("/api/forecast", headers=headers)
+print(resp.json())</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── VERIFY TAB ── -->
+  <div class="tab-panel" id="tab-verify">
+    <div class="form-card">
+      <h2>Verify an API Key</h2>
+      <p class="form-sub">Check your key's validity, plan, and remaining quota for today.</p>
+      <form id="verifyForm">
+        <div class="form-group">
+          <label for="verifyKey">API Key</label>
+          <input type="text" id="verifyKey" placeholder="rw_…" autocomplete="off" />
+        </div>
+        <button type="submit" class="form-submit" id="verifyBtn">Verify Key →</button>
+      </form>
+      <div id="verifyError" class="msg-error hidden"></div>
+      <div id="verifyResult" class="hidden">
+        <div class="result-block">
+          <h3>KEY STATUS</h3>
+          <div class="usage-row">
+            <div class="usage-stat">
+              <div class="usage-stat-num" id="vPlan">—</div>
+              <div class="usage-stat-label">Plan</div>
+            </div>
+            <div class="usage-stat">
+              <div class="usage-stat-num" id="vUsed">—</div>
+              <div class="usage-stat-label">Used Today</div>
+            </div>
+            <div class="usage-stat">
+              <div class="usage-stat-num" id="vLimit">—</div>
+              <div class="usage-stat-label">Daily Limit</div>
+            </div>
+          </div>
+          <p id="vCreated" style="margin-top:12px;font-size:12px;color:var(--text-3)"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DOCS TAB ── -->
+  <div class="tab-panel" id="tab-docs">
+    <div class="form-card" style="max-width:660px">
+      <h2>API Reference</h2>
+      <p class="form-sub">All endpoints return JSON. Pass your key via header or query param.</p>
+
+      <div class="code-example">
+        <h4>AUTHENTICATION</h4>
+        <pre><code>X-API-Key: rw_your_key_here
+# OR
+Authorization: Bearer rw_your_key_here</code></pre>
+      </div>
+
+      <div class="code-example">
+        <h4>CORE ENDPOINTS</h4>
+        <pre>GET  /api/trends          — Scored &amp; ranked fashion trends
+GET  /api/forecast        — 7/14/30-day ML projections
+GET  /api/news            — Latest fashion news (20+ sources)
+GET  /api/reddit          — Top Reddit fashion posts
+GET  /api/google-trends   — Google Trends data
+GET  /api/aesthetics      — Aesthetic movement scores
+GET  /api/colors          — Color trend palette
+GET  /api/brands          — Brand mention leaderboard
+GET  /api/calendar        — Fashion event calendar
+GET  /api/dashboard       — Full dashboard summary</pre>
+      </div>
+
+      <div class="code-example">
+        <h4>AI ENDPOINTS (key required)</h4>
+        <pre>GET  /api/ai/trend/&lt;name&gt;   — AI analysis for one trend
+GET  /api/ai/overview       — AI overview of top trends
+GET  /api/ai/season         — AI seasonal outlook
+GET  /api/search?q=&lt;query&gt;  — RAG search + AI analysis
+POST /api/db/ingest         — Trigger full data ingest</pre>
+      </div>
+
+      <div class="code-example">
+        <h4>KEY MANAGEMENT</h4>
+        <pre>POST /api/keys/register   — Register &amp; get a new key
+GET  /api/keys/verify     — Verify key &amp; check quota</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Tab switching ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Register ──────────────────────────────────────────────────────────────────
+document.getElementById('regForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email  = document.getElementById('email').value.trim();
+  const plan   = document.getElementById('plan').value;
+  const errEl  = document.getElementById('regError');
+  const resEl  = document.getElementById('regSuccess');
+  const btn    = document.getElementById('regBtn');
+
+  errEl.classList.add('hidden');
+  resEl.classList.add('hidden');
+  btn.disabled   = true;
+  btn.textContent = 'Generating…';
+
+  try {
+    const res  = await fetch('/api/keys/register', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({ email, plan }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errEl.textContent = data.error || data.message || 'Registration failed.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    document.getElementById('newKeyDisplay').textContent = data.api_key;
+    document.getElementById('regPlanInfo').textContent =
+      `✓ ${data.plan} plan — ${data.daily_limit || 'Unlimited'} requests/day`;
+    resEl.classList.remove('hidden');
+    e.target.style.display = 'none';
+    localStorage.setItem('runway_api_key', data.api_key);
+
+  } catch (err) {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled   = false;
+    btn.textContent = 'Generate API Key →';
+  }
+});
+
+document.getElementById('copyNewKey')?.addEventListener('click', () => {
+  const key = document.getElementById('newKeyDisplay').textContent;
+  navigator.clipboard.writeText(key).then(() => {
+    document.getElementById('copyNewKey').textContent = '✓ Copied!';
+    setTimeout(() => document.getElementById('copyNewKey').textContent = '📋 Copy Key', 2000);
+  });
+});
+
+// ── Verify ────────────────────────────────────────────────────────────────────
+document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const key    = document.getElementById('verifyKey').value.trim();
+  const errEl  = document.getElementById('verifyError');
+  const resEl  = document.getElementById('verifyResult');
+  const btn    = document.getElementById('verifyBtn');
+
+  errEl.classList.add('hidden');
+  resEl.classList.add('hidden');
+  btn.disabled   = true;
+  btn.textContent = 'Verifying…';
+
+  try {
+    const res  = await fetch('/api/keys/verify', {
+      headers: {'X-API-Key': key},
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.valid) {
+      errEl.textContent = data.error || 'Invalid or expired API key.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    document.getElementById('vPlan').textContent  = data.plan;
+    document.getElementById('vUsed').textContent  = data.requests_today;
+    document.getElementById('vLimit').textContent = data.daily_limit || '∞';
+    document.getElementById('vCreated').textContent =
+      `Registered: ${data.created_at ? data.created_at.slice(0,10) : '—'}  ·  Last used: ${data.last_used ? data.last_used.slice(0,10) : 'never'}`;
+    resEl.classList.remove('hidden');
+
+  } catch (err) {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled   = false;
+    btn.textContent = 'Verify Key →';
+  }
+});
+
+// Pre-fill verify field from localStorage if key already saved
+const savedKey = localStorage.getItem('runway_api_key');
+if (savedKey) document.getElementById('verifyKey').value = savedKey;
+</script>
+</body>
+</html>
