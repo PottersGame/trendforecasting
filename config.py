@@ -25,9 +25,10 @@ class Config:
     SECRET_KEY  = _secret_key
     DEBUG       = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-    # AI API keys — all optional; falls back to Ollama then rule-based
-    GROQ_API_KEY   = os.environ.get('GROQ_API_KEY', '')
-    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+    # AI API keys — all optional; falls back through chain then rule-based
+    GROQ_API_KEY    = os.environ.get('GROQ_API_KEY', '')
+    OPENAI_API_KEY  = os.environ.get('OPENAI_API_KEY', '')
+    GEMINI_API_KEY  = os.environ.get('GEMINI_API_KEY', '')  # Google Gemini (free tier)
 
     # Ollama local model config
     OLLAMA_HOST  = os.environ.get('OLLAMA_HOST', 'http://localhost:11434')

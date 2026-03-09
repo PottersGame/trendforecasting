@@ -32,6 +32,14 @@ FASHION_FEEDS: List[tuple] = [
     ('InStyle',            'https://www.instyle.com/rss/all.xml',               ['style', 'beauty', 'celebrity']),
     ('Hypebaenews',        'https://hypebae.com/feed',                          ['streetwear', 'women', 'beauty']),
     ('Complex Style',      'https://www.complex.com/style/rss',                 ['streetwear', 'sneakers', 'celebrity']),
+    ('GQ',                 'https://www.gq.com/feed/rss',                       ['menswear', 'style', 'grooming']),
+    ('Highsnobiety',       'https://www.highsnobiety.com/rss',                  ['streetwear', 'luxury', 'sneakers']),
+    ('The Cut',            'https://www.thecut.com/rss/index.xml',              ['style', 'beauty', 'culture']),
+    ('Teen Vogue',         'https://www.teenvogue.com/feed/rss',                ['style', 'beauty', 'sustainable']),
+    ('Nylon',              'https://www.nylon.com/rss',                         ['style', 'beauty', 'culture']),
+    ('Dazed',              'https://www.dazeddigital.com/rss',                  ['culture', 'streetwear', 'beauty']),
+    ('i-D Magazine',       'https://i-d.vice.com/rss',                          ['culture', 'style', 'diversity']),
+    ('Marie Claire',       'https://www.marieclaire.com/rss/all.xml/',          ['style', 'beauty', 'celebrity']),
 ]
 
 _STRIP_TAGS = re.compile(r'<[^>]+>')

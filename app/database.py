@@ -118,7 +118,22 @@ CREATE TABLE IF NOT EXISTS forecasts (
     computed_at      TEXT    DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
 
--- Indexes for fast lookups
+CREATE TABLE IF NOT EXISTS api_users (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    email           TEXT    UNIQUE NOT NULL,
+    api_key         TEXT    UNIQUE NOT NULL,
+    plan            TEXT    DEFAULT 'free',   -- 'free' | 'pro' | 'enterprise'
+    requests_today  INTEGER DEFAULT 0,
+    daily_limit     INTEGER DEFAULT 100,      -- requests per day (free=100, pro=5000)
+    last_reset      TEXT    DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    created_at      TEXT    DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    last_used       TEXT
+);
+
+-- Index for fast key lookup
+CREATE INDEX IF NOT EXISTS idx_api_users_key   ON api_users(api_key);
+CREATE INDEX IF NOT EXISTS idx_api_users_email ON api_users(email);
+
 CREATE INDEX IF NOT EXISTS idx_news_fetched       ON fashion_news(fetched_at);
 CREATE INDEX IF NOT EXISTS idx_news_source        ON fashion_news(source);
 CREATE INDEX IF NOT EXISTS idx_reddit_fetched     ON reddit_posts(fetched_at);
@@ -494,6 +509,103 @@ def get_top_keywords_from_db(days: int = 7, limit: int = 40) -> List[Dict[str, A
     with _conn() as con:
         rows = con.execute(sql, (f'-{days} days', limit)).fetchall()
     return [{'word': r['keyword'], 'count': r['total']} for r in rows]
+
+
+# ── API User Management ───────────────────────────────────────────────────────
+
+# Daily request limits per plan (0 = unlimited)
+_PLAN_DAILY_LIMITS: Dict[str, int] = {
+    'free':       100,
+    'pro':        5000,
+    'enterprise': 0,      # unlimited
+}
+
+
+def create_api_user(email: str, api_key: str, plan: str = 'free') -> Optional[Dict[str, Any]]:
+    """Register a new API user. Returns user dict or None on duplicate email."""
+    daily_limit = _PLAN_DAILY_LIMITS.get(plan, _PLAN_DAILY_LIMITS['free'])
+    sql = """
+        INSERT INTO api_users (email, api_key, plan, daily_limit)
+        VALUES (?, ?, ?, ?)
+    """
+    try:
+        with _lock, _conn() as con:
+            con.execute(sql, (email.lower().strip(), api_key, plan, daily_limit))
+        return {'email': email, 'api_key': api_key, 'plan': plan, 'daily_limit': daily_limit}
+    except sqlite3.IntegrityError:
+        return None
+
+
+def get_api_user_by_key(api_key: str) -> Optional[Dict[str, Any]]:
+    """Look up a user by their API key."""
+    sql = 'SELECT * FROM api_users WHERE api_key = ?'
+    with _conn() as con:
+        row = con.execute(sql, (api_key,)).fetchone()
+    return dict(row) if row else None
+
+
+def get_api_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    """Look up a user by email."""
+    sql = 'SELECT * FROM api_users WHERE email = ?'
+    with _conn() as con:
+        row = con.execute(sql, (email.lower().strip(),)).fetchone()
+    return dict(row) if row else None
+
+
+def increment_api_user_usage(api_key: str) -> bool:
+    """
+    Increment request counter for the day.
+    Resets counter if it's a new day.
+    Returns True if allowed (under limit), False if quota exceeded.
+    """
+    user = get_api_user_by_key(api_key)
+    if not user:
+        return False
+
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    today = now.date().isoformat()
+
+    last_reset_str = user.get('last_reset', '')
+    try:
+        last_reset_date = str(last_reset_str)[:10]
+    except (TypeError, ValueError):
+        last_reset_date = ''
+
+    if last_reset_date != today:
+        # New day — reset counter
+        with _lock, _conn() as con:
+            con.execute(
+                'UPDATE api_users SET requests_today=1, last_reset=?, last_used=? WHERE api_key=?',
+                (now.isoformat()[:19] + 'Z', now.isoformat()[:19] + 'Z', api_key),
+            )
+        return True
+
+    # Check limit (0 = unlimited for enterprise)
+    daily_limit = user.get('daily_limit', 100)
+    requests_today = user.get('requests_today', 0)
+    if daily_limit > 0 and requests_today >= daily_limit:
+        return False
+
+    with _lock, _conn() as con:
+        con.execute(
+            'UPDATE api_users SET requests_today=requests_today+1, last_used=? WHERE api_key=?',
+            (now.isoformat()[:19] + 'Z', api_key),
+        )
+    return True
+
+
+def get_api_users_stats() -> Dict[str, Any]:
+    """Summary stats about registered API users."""
+    with _conn() as con:
+        total = con.execute('SELECT COUNT(*) FROM api_users').fetchone()[0]
+        by_plan = con.execute(
+            'SELECT plan, COUNT(*) as cnt FROM api_users GROUP BY plan'
+        ).fetchall()
+    return {
+        'total_users': total,
+        'by_plan': {r['plan']: r['cnt'] for r in by_plan},
+    }
 
 
 # Initialise DB on import

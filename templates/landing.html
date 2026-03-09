@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RUNWAY AI — Fashion Trend Intelligence Platform</title>
+  <meta name="description" content="AI-powered fashion trend forecasting. Real-time data from 20+ sources, ML predictions, and instant API access." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/landing.css" />
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">
+      <span class="logo-gem">✦</span>
+      <span class="logo-name">RUNWAY AI</span>
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#sources">Data</a>
+      <a href="#pricing">Pricing</a>
+      <a href="/dashboard" class="btn-outline">Dashboard →</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-inner">
+    <div class="hero-badge">✦ AI-POWERED TREND INTELLIGENCE</div>
+    <h1 class="hero-title">
+      See Fashion's<br/>
+      <em>Next Move</em><br/>
+      Before It Happens
+    </h1>
+    <p class="hero-sub">
+      RUNWAY AI aggregates 20+ fashion sources in real-time, applies machine learning
+      to score &amp; forecast trends, and delivers actionable intelligence through a
+      blazing-fast API.
+    </p>
+    <div class="hero-cta">
+      <a href="/dashboard" class="btn-primary">Open Dashboard →</a>
+      <a href="#pricing" class="btn-ghost">Get API Key</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat-pill"><span class="stat-num">20+</span> Sources</div>
+      <div class="stat-pill"><span class="stat-num">50+</span> API Endpoints</div>
+      <div class="stat-pill"><span class="stat-num">30-day</span> Forecasts</div>
+      <div class="stat-pill"><span class="stat-num">4</span> AI Models</div>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="visual-card card-1">
+      <div class="vc-label">↑ RISING TREND</div>
+      <div class="vc-name">Quiet Luxury</div>
+      <div class="vc-bar"><div class="vc-fill" style="width:87%"></div></div>
+      <div class="vc-score">Score: 87 / 100</div>
+    </div>
+    <div class="visual-card card-2">
+      <div class="vc-label">30-DAY FORECAST</div>
+      <div class="vc-sparkline">
+        <svg viewBox="0 0 120 40" fill="none">
+          <polyline points="0,32 20,28 40,22 60,18 80,12 100,8 120,4"
+            stroke="#a855f7" stroke-width="2" fill="none"/>
+          <polyline points="0,32 20,28 40,22 60,18 80,12 100,8 120,4"
+            stroke="url(#grad)" stroke-width="0" fill="url(#areaGrad)" opacity="0.3"/>
+          <defs>
+            <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#a855f7"/>
+              <stop offset="100%" stop-color="#22d3ee"/>
+            </linearGradient>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#a855f7" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#a855f7" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="vc-score" style="color:#22d3ee">+34% projected growth</div>
+    </div>
+    <div class="visual-card card-3">
+      <div class="vc-label">✦ AI INSIGHT</div>
+      <div class="vc-text">"Y2K aesthetics are hitting their peak across TikTok and Gen-Z Reddit communities with strong cross-brand momentum…"</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── TICKER ── -->
+<div class="ticker-bar">
+  <div class="ticker-inner">
+    <span class="tick">↑ QUIET LUXURY +12%</span>
+    <span class="tick-sep">·</span>
+    <span class="tick">↑ Y2K REVIVAL +28%</span>
+    <span class="tick-sep">·</span>
+    <span class="tick">↗ GORPCORE STABLE</span>
+    <span class="tick-sep">·</span>
+    <span class="tick">↑ BALLETCORE +19%</span>
+    <span class="tick-sep">·</span>
+    <span class="tick">↓ MAXIMALISM -5%</span>
+    <span class="tick-sep">·</span>
+    <span class="tick">↑ COASTAL GRANDMOTHER +8%</span>
+    <span class="tick-sep">·</span>
+    <span class="tick">↑ DOPAMINE DRESSING +15%</span>
+    <span class="tick-sep">·</span>
+    <span class="tick">↑ QUIET LUXURY +12%</span>
+    <span class="tick-sep">·</span>
+    <span class="tick">↑ Y2K REVIVAL +28%</span>
+    <span class="tick-sep">·</span>
+    <span class="tick">↗ GORPCORE STABLE</span>
+    <span class="tick-sep">·</span>
+    <span class="tick">↑ BALLETCORE +19%</span>
+    <span class="tick-sep">·</span>
+    <span class="tick">↓ MAXIMALISM -5%</span>
+    <span class="tick-sep">·</span>
+  </div>
+</div>
+
+<!-- ── FEATURES ── -->
+<section class="features" id="features">
+  <div class="section-inner">
+    <div class="section-label">CAPABILITIES</div>
+    <h2 class="section-heading">Everything you need to<br/><em>stay ahead of the curve</em></h2>
+    <div class="features-grid">
+      <div class="feat-card">
+        <div class="feat-icon">◈</div>
+        <h3>Real-Time Aggregation</h3>
+        <p>Pulls live data from 20+ fashion publications, Reddit, Google Trends, TikTok signals, and Wikipedia simultaneously.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">◌</div>
+        <h3>ML Trend Forecasting</h3>
+        <p>Time-series regression models project trend momentum 7, 14, and 30 days forward with confidence intervals.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">✦</div>
+        <h3>4-Model AI Chain</h3>
+        <p>Groq → Gemini → OpenAI → Ollama fallback chain ensures AI insights are always available with the best model.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">◉</div>
+        <h3>Color Trend Palette</h3>
+        <p>Tracks seasonal color movements with Pantone-inspired forecasting across luxury, streetwear, and sustainable fashion.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">⊕</div>
+        <h3>RAG Search Engine</h3>
+        <p>Search our growing database of news articles and Reddit posts. The AI synthesises results into instant forecasts.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">◐</div>
+        <h3>50+ API Endpoints</h3>
+        <p>Full REST API access to trends, forecasts, aesthetics, brands, colors, and AI analysis — all JSON, blazing fast.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── DATA SOURCES ── -->
+<section class="sources" id="sources">
+  <div class="section-inner">
+    <div class="section-label">DATA SOURCES</div>
+    <h2 class="section-heading">Intelligence from <em>every corner</em> of fashion</h2>
+    <div class="sources-grid">
+      <div class="source-group">
+        <div class="source-group-title">📰 Editorial</div>
+        <div class="source-tags">
+          <span>Vogue</span><span>Elle</span><span>Harper's Bazaar</span>
+          <span>WWD</span><span>Business of Fashion</span><span>GQ</span>
+          <span>Highsnobiety</span><span>The Cut</span><span>Teen Vogue</span>
+          <span>Nylon</span><span>Dazed</span><span>i-D Magazine</span>
+          <span>Fashionista</span><span>Refinery29</span><span>InStyle</span>
+        </div>
+      </div>
+      <div class="source-group">
+        <div class="source-group-title">💬 Community</div>
+        <div class="source-tags">
+          <span>r/fashion</span><span>r/streetwear</span><span>r/femalefashionadvice</span>
+          <span>r/malefashionadvice</span><span>r/sneakers</span><span>r/luxuryfashion</span>
+          <span>r/sustainability</span><span>r/vintage</span><span>Wikipedia</span>
+        </div>
+      </div>
+      <div class="source-group">
+        <div class="source-group-title">📊 Analytics</div>
+        <div class="source-tags">
+          <span>Google Trends</span><span>TikTok Signals</span>
+          <span>Pinterest Boards</span><span>Aesthetic Groups</span>
+          <span>Keyword Tracking</span><span>Brand Mentions</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── AI MODELS ── -->
+<section class="ai-section">
+  <div class="section-inner">
+    <div class="section-label">AI ENGINE</div>
+    <h2 class="section-heading">Four AI models, <em>one seamless experience</em></h2>
+    <div class="ai-models-row">
+      <div class="ai-model-card priority-1">
+        <div class="am-priority">Priority 1</div>
+        <div class="am-name">Groq</div>
+        <div class="am-model">llama3-8b-8192</div>
+        <div class="am-desc">Ultra-fast inference. Set GROQ_API_KEY for the best experience.</div>
+        <div class="am-badge free">Free Tier</div>
+      </div>
+      <div class="ai-model-card priority-2">
+        <div class="am-priority">Priority 2</div>
+        <div class="am-name">Google Gemini</div>
+        <div class="am-model">gemini-1.5-flash</div>
+        <div class="am-desc">Google's multimodal AI. Set GEMINI_API_KEY for rich analysis.</div>
+        <div class="am-badge free">Free Tier</div>
+      </div>
+      <div class="ai-model-card priority-3">
+        <div class="am-priority">Priority 3</div>
+        <div class="am-name">OpenAI</div>
+        <div class="am-model">gpt-3.5-turbo</div>
+        <div class="am-desc">Industry-standard quality. Set OPENAI_API_KEY.</div>
+        <div class="am-badge paid">Paid</div>
+      </div>
+      <div class="ai-model-card priority-4">
+        <div class="am-priority">Priority 4</div>
+        <div class="am-name">Ollama</div>
+        <div class="am-model">Local (any model)</div>
+        <div class="am-desc">Run any open-source model locally. Zero cost, full privacy.</div>
+        <div class="am-badge free">Free</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PRICING ── -->
+<section class="pricing" id="pricing">
+  <div class="section-inner">
+    <div class="section-label">PLANS</div>
+    <h2 class="section-heading">Start free, <em>scale as you grow</em></h2>
+    <div class="pricing-grid">
+      <div class="plan-card">
+        <div class="plan-name">Free</div>
+        <div class="plan-price"><span class="price-num">$0</span><span class="price-period">/month</span></div>
+        <ul class="plan-features">
+          <li>✓ 100 API requests / day</li>
+          <li>✓ All trend endpoints</li>
+          <li>✓ News &amp; Reddit data</li>
+          <li>✓ Color &amp; aesthetic trends</li>
+          <li>✓ Basic forecasting</li>
+          <li>✗ AI analysis endpoints</li>
+          <li>✗ Priority support</li>
+        </ul>
+        <a href="#register" class="plan-btn">Get Free Key →</a>
+      </div>
+      <div class="plan-card featured">
+        <div class="plan-badge">MOST POPULAR</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price"><span class="price-num">$29</span><span class="price-period">/month</span></div>
+        <ul class="plan-features">
+          <li>✓ 5,000 API requests / day</li>
+          <li>✓ All trend endpoints</li>
+          <li>✓ Full AI analysis</li>
+          <li>✓ 30-day ML forecasting</li>
+          <li>✓ Brand &amp; keyword tracking</li>
+          <li>✓ Historical data access</li>
+          <li>✓ Email support</li>
+        </ul>
+        <a href="#register" class="plan-btn plan-btn-primary">Get Pro Key →</a>
+      </div>
+      <div class="plan-card">
+        <div class="plan-name">Enterprise</div>
+        <div class="plan-price"><span class="price-num">Custom</span></div>
+        <ul class="plan-features">
+          <li>✓ Unlimited requests</li>
+          <li>✓ Dedicated instance</li>
+          <li>✓ Custom data sources</li>
+          <li>✓ White-label option</li>
+          <li>✓ SLA guarantee</li>
+          <li>✓ Dedicated support</li>
+          <li>✓ Custom integrations</li>
+        </ul>
+        <a href="mailto:hello@runwayai.io" class="plan-btn">Contact Us →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── REGISTER ── -->
+<section class="register" id="register">
+  <div class="section-inner">
+    <div class="section-label">GET STARTED</div>
+    <h2 class="section-heading">Your API key, <em>ready in seconds</em></h2>
+    <div class="register-card">
+      <p class="register-sub">Enter your email to receive a free API key instantly. No credit card required.</p>
+      <form class="register-form" id="registerForm">
+        <input type="email" id="regEmail" placeholder="your@email.com" required autocomplete="email" />
+        <select id="regPlan">
+          <option value="free">Free (100 req/day)</option>
+          <option value="pro">Pro (5,000 req/day — billing coming soon)</option>
+        </select>
+        <button type="submit" class="btn-primary">Generate My API Key →</button>
+      </form>
+      <div class="register-result hidden" id="registerResult">
+        <div class="result-icon">✓</div>
+        <h3>Your API Key</h3>
+        <div class="key-display" id="keyDisplay"></div>
+        <p class="key-copy-note">Copy this key — it won't be shown again.<br/>
+          Use it as: <code>X-API-Key: your-key</code> or <code>Authorization: Bearer your-key</code></p>
+        <div class="key-actions">
+          <button class="btn-outline" id="copyKeyBtn">📋 Copy Key</button>
+          <a href="/dashboard" class="btn-primary">Open Dashboard →</a>
+        </div>
+        <p id="keyPlanInfo" class="key-plan-info"></p>
+      </div>
+      <div class="register-error hidden" id="registerError"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-logo">
+      <span class="logo-gem">✦</span>
+      <span class="logo-name">RUNWAY AI</span>
+    </div>
+    <p class="footer-tagline">Fashion trend intelligence, powered by AI.</p>
+    <div class="footer-links">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/keys">API Keys</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#features">Features</a>
+    </div>
+    <p class="footer-copy">© 2025 RUNWAY AI · Built with ✦ for fashion intelligence</p>
+  </div>
+</footer>
+
+<script>
+// ── Register form ────────────────────────────────────────────────────────────
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email   = document.getElementById('regEmail').value.trim();
+  const plan    = document.getElementById('regPlan').value;
+  const errEl   = document.getElementById('registerError');
+  const resEl   = document.getElementById('registerResult');
+  const btn     = e.target.querySelector('button');
+
+  errEl.classList.add('hidden');
+  resEl.classList.add('hidden');
+  btn.disabled   = true;
+  btn.textContent = 'Generating…';
+
+  try {
+    const res = await fetch('/api/keys/register', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({ email, plan }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errEl.textContent = data.error || data.message || 'Registration failed.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    document.getElementById('keyDisplay').textContent = data.api_key;
+    document.getElementById('keyPlanInfo').textContent =
+      `Plan: ${data.plan} · ${data.daily_limit || 'Unlimited'} requests/day`;
+    resEl.classList.remove('hidden');
+    e.target.style.display = 'none';
+
+    // Store in localStorage for convenience
+    localStorage.setItem('runway_api_key', data.api_key);
+
+  } catch (err) {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled   = false;
+    btn.textContent = 'Generate My API Key →';
+  }
+});
+
+// ── Copy key ─────────────────────────────────────────────────────────────────
+document.getElementById('copyKeyBtn')?.addEventListener('click', () => {
+  const key = document.getElementById('keyDisplay').textContent;
+  navigator.clipboard.writeText(key).then(() => {
+    const btn = document.getElementById('copyKeyBtn');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy Key', 2000);
+  });
+});
+
+// ── Smooth scroll for anchor links ──────────────────────────────────────────
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) {
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+</script>
+</body>
+</html>
