@@ -48,6 +48,31 @@ def _start_scheduler(app: Flask) -> None:
     )
 
 
+def _bootstrap_admin(app: Flask) -> None:
+    """Create the initial admin user if ADMIN_EMAIL and ADMIN_PASSWORD are set."""
+    email    = app.config.get('ADMIN_EMAIL', '').strip()
+    password = app.config.get('ADMIN_PASSWORD', '').strip()
+    if not email or not password:
+        return
+
+    with app.app_context():
+        try:
+            import secrets as _secrets
+            from werkzeug.security import generate_password_hash
+            from app.database import get_api_user_by_email, create_api_user
+            if get_api_user_by_email(email):
+                return  # already exists — don't overwrite
+            pw_hash = generate_password_hash(password)
+            api_key = 'rw_' + _secrets.token_urlsafe(32)
+            create_api_user(
+                email, api_key, plan='enterprise',
+                password_hash=pw_hash, is_admin=True,
+            )
+            app.logger.info('Admin account created for %s', email)
+        except Exception as exc:
+            app.logger.exception('Failed to bootstrap admin account: %s', exc)
+
+
 def create_app(config_class=Config):
     """Create and configure the Flask application."""
     app = Flask(
@@ -56,6 +81,14 @@ def create_app(config_class=Config):
         static_folder=_STATIC,
     )
     app.config.from_object(config_class)
+
+    # Harden session cookie for production
+    app.config.setdefault('SESSION_COOKIE_HTTPONLY', True)
+    app.config.setdefault('SESSION_COOKIE_SAMESITE', 'Lax')
+    # Mark the session cookie as Secure when not in debug mode so it is only
+    # sent over HTTPS in production deployments.
+    if not app.config.get('DEBUG'):
+        app.config.setdefault('SESSION_COOKIE_SECURE', True)
 
     CORS(app)
 
@@ -66,6 +99,14 @@ def create_app(config_class=Config):
     except ImportError:
         pass
 
+    # Add basic security headers to every response
+    @app.after_request
+    def _add_security_headers(response):
+        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+        response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+        return response
+
     from app.api.routes import api_bp
     app.register_blueprint(api_bp)
 
@@ -73,5 +114,6 @@ def create_app(config_class=Config):
     app.register_blueprint(views_bp)
 
     _start_scheduler(app)
+    _bootstrap_admin(app)
 
     return app

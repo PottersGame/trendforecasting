@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up — RUNWAY AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/landing.css" />
+  <style>
+    .auth-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 16px 40px;
+    }
+    .auth-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(168,85,247,.2);
+      border-radius: 20px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 440px;
+    }
+    .auth-card .auth-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .auth-card .auth-logo .logo-gem {
+      color: var(--accent);
+      font-size: 24px;
+      margin-right: 8px;
+    }
+    .auth-card .auth-logo .logo-name {
+      font-family: var(--font-serif);
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: var(--text-1);
+    }
+    .auth-card h1 {
+      font-family: var(--font-serif);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-1);
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .auth-card .auth-sub {
+      font-size: 14px;
+      color: var(--text-2);
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: var(--text-2);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 11px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border-2);
+      border-radius: 8px;
+      color: var(--text-1);
+      font-size: 14px;
+      font-family: var(--font-sans);
+      outline: none;
+      transition: border-color .2s;
+      box-sizing: border-box;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+    .form-group input::placeholder { color: var(--text-3); }
+    .form-group select option { background: var(--bg-2); }
+    .form-hint {
+      font-size: 11px;
+      color: var(--text-3);
+      margin-top: 4px;
+    }
+    .auth-submit {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .2s, box-shadow .2s;
+      box-shadow: 0 4px 20px rgba(168,85,247,.3);
+      margin-top: 8px;
+      font-family: var(--font-sans);
+    }
+    .auth-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(168,85,247,.45); }
+    .auth-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+    .auth-error {
+      background: rgba(236,72,153,.08);
+      border: 1px solid rgba(236,72,153,.2);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--pink);
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    .auth-links {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 13px;
+      color: var(--text-2);
+    }
+    .auth-links a { color: var(--accent); text-decoration: none; }
+    .auth-links a:hover { text-decoration: underline; }
+    .plan-info {
+      background: rgba(168,85,247,.06);
+      border: 1px solid rgba(168,85,247,.15);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: var(--text-2);
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">
+      <span class="logo-gem">✦</span>
+      <span class="logo-name">RUNWAY AI</span>
+    </a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/login" class="btn-outline">Login →</a>
+    </div>
+  </div>
+</nav>
+
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="logo-gem">✦</span>
+      <span class="logo-name">RUNWAY AI</span>
+    </div>
+    <h1>Create Account</h1>
+    <p class="auth-sub">Get your API key and start accessing fashion trend intelligence.</p>
+
+    {% if error %}
+    <div class="auth-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/signup">
+      <div class="form-group">
+        <label for="email">Email address</label>
+        <input type="email" id="email" name="email" placeholder="you@example.com" required autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="At least 8 characters" required autocomplete="new-password" minlength="8" />
+        <p class="form-hint">Minimum 8 characters.</p>
+      </div>
+      <div class="form-group">
+        <label for="confirm">Confirm password</label>
+        <input type="password" id="confirm" name="confirm" placeholder="Repeat your password" required autocomplete="new-password" />
+      </div>
+      <button type="submit" class="auth-submit">Create Account &amp; Get API Key →</button>
+    </form>
+
+    <div class="plan-info">
+      ✓ Free plan — 100 API requests/day &nbsp;·&nbsp; No credit card required
+    </div>
+
+    <div class="auth-links">
+      Already have an account? <a href="/login">Sign in →</a>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

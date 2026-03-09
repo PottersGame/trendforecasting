@@ -245,6 +245,8 @@
     </a>
     <div class="nav-links">
       <a href="/">Home</a>
+      <a href="/login">Login</a>
+      <a href="/signup">Sign Up</a>
       <a href="/dashboard" class="btn-outline">Dashboard →</a>
     </div>
   </div>
@@ -255,12 +257,44 @@
     <div class="section-label">API ACCESS</div>
     <h1>Your <em>API Key</em> Portal</h1>
     <p>Generate, verify, and manage your RUNWAY AI API keys. All plans start free — no credit card required.</p>
+
+    {% if not user %}
     <div class="tabs">
       <button class="tab-btn active" data-tab="register">Get New Key</button>
       <button class="tab-btn" data-tab="verify">Verify Key</button>
       <button class="tab-btn" data-tab="docs">API Docs</button>
     </div>
+    {% endif %}
   </div>
+
+  {% if user %}
+  <!-- ── LOGGED-IN ACCOUNT VIEW ── -->
+  <div style="text-align:center;margin-bottom:8px">
+    <p style="font-size:14px;color:var(--text-2)">Logged in as <strong style="color:var(--text-1)">{{ user.email }}</strong> &nbsp;·&nbsp; <a href="/logout" style="color:var(--accent)">Logout</a>
+      {% if user.is_admin %}&nbsp;·&nbsp; <a href="/admin" style="color:var(--cyan)">Admin Console</a>{% endif %}
+    </p>
+  </div>
+  <div class="form-card" style="text-align:left">
+    <h2>Your API Key</h2>
+    <p class="form-sub">Plan: <strong>{{ user.plan }}</strong> &nbsp;·&nbsp; {{ user.requests_today }} / {{ user.daily_limit if user.daily_limit else '∞' }} requests used today</p>
+    <div class="key-box" id="accountKeyDisplay">{{ user.api_key }}</div>
+    <div class="copy-row" style="margin-top:12px">
+      <button class="copy-btn" id="copyAccountKey">📋 Copy Key</button>
+      <a href="/dashboard" class="btn-outline" style="font-size:13px;padding:8px 16px">Open Dashboard →</a>
+    </div>
+    <div class="code-example" style="margin-top:16px">
+      <h4>USAGE EXAMPLE</h4>
+      <pre><code>curl -H "X-API-Key: {{ user.api_key }}" /api/trends</code>
+
+<code># Python
+import requests
+headers = {"X-API-Key": "{{ user.api_key }}"}
+resp = requests.get("/api/forecast", headers=headers)
+print(resp.json())</code></pre>
+    </div>
+  </div>
+
+  {% else %}
 
   <!-- ── REGISTER TAB ── -->
   <div class="tab-panel active" id="tab-register">
@@ -276,7 +310,7 @@
           <label for="plan">Plan</label>
           <select id="plan">
             <option value="free">Free — 100 requests/day</option>
-            <option value="pro">Pro — 5,000 req/day (billing coming soon)</option>
+            <option value="pro">Pro — 5,000 req/day</option>
           </select>
         </div>
         <button type="submit" class="form-submit" id="regBtn">Generate API Key →</button>
@@ -294,8 +328,7 @@
         <p id="regPlanInfo" class="msg-success"></p>
         <div class="code-example">
           <h4>USAGE EXAMPLE</h4>
-          <pre><code>curl -H "X-API-Key: YOUR_KEY" \
-  https://runwayai.io/api/trends</code>
+          <pre><code>curl -H "X-API-Key: YOUR_KEY" /api/trends</code>
 
 <code># Python
 import requests
@@ -386,9 +419,21 @@ GET  /api/keys/verify     — Verify key &amp; check quota</pre>
       </div>
     </div>
   </div>
+
+  {% endif %}
 </div>
 
 <script>
+{% if user %}
+// ── Logged-in copy button ──────────────────────────────────────────────────
+document.getElementById('copyAccountKey')?.addEventListener('click', () => {
+  const key = document.getElementById('accountKeyDisplay').textContent.trim();
+  navigator.clipboard.writeText(key).then(() => {
+    document.getElementById('copyAccountKey').textContent = '✓ Copied!';
+    setTimeout(() => document.getElementById('copyAccountKey').textContent = '📋 Copy Key', 2000);
+  });
+});
+{% else %}
 // ── Tab switching ─────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -495,6 +540,7 @@ document.getElementById('verifyForm').addEventListener('submit', async (e) => {
 // Pre-fill verify field from localStorage if key already saved
 const savedKey = localStorage.getItem('runway_api_key');
 if (savedKey) document.getElementById('verifyKey').value = savedKey;
+{% endif %}
 </script>
 </body>
 </html>

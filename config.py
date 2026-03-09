@@ -48,3 +48,8 @@ class Config:
     # How often (in minutes) to automatically ingest data in the background.
     # 0 = disabled.  Recommended: 120 (every 2 hours).
     SCRAPE_INTERVAL_MINUTES = int(os.environ.get('SCRAPE_INTERVAL_MINUTES', '0'))
+
+    # Bootstrap admin account created on first run (optional).
+    # Set both to seed an admin user; leave blank to skip.
+    ADMIN_EMAIL    = os.environ.get('ADMIN_EMAIL', '').strip()
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '').strip()
