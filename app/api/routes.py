@@ -76,7 +76,7 @@ from app.data_sources.google_trends_fashion import (
     get_interest_over_time, get_trending_fashion_searches,
     get_aesthetic_group_interest, get_all_group_scores,
     get_related_queries, get_status as google_trends_status,
-    AESTHETIC_GROUPS,
+    refresh_aesthetic_groups, discover_trending_keywords,
 )
 from app.data_sources.wikipedia_fashion  import (
     get_top_fashion_articles, get_fashion_designer_articles,
@@ -173,7 +173,7 @@ def _ingest_all() -> dict:
 
     # Google Trends (best-effort — may be rate-limited)
     try:
-        for group, keywords in list(AESTHETIC_GROUPS.items())[:3]:
+        for group, keywords in list(refresh_aesthetic_groups().items())[:3]:
             data = get_aesthetic_group_interest(group)
             dates = data.get('dates', [])
             for kw, vals in data.get('data', {}).items():
@@ -319,12 +319,12 @@ def google_trends():
     geo      = request.args.get('geo', '')
     tf       = request.args.get('timeframe', 'today 3-m')
 
-    if group and group in AESTHETIC_GROUPS:
+    if group and group in refresh_aesthetic_groups():
         return jsonify(get_aesthetic_group_interest(group))
     if keywords:
         kw_list = [k.strip() for k in keywords.split(',') if k.strip()][:5]
         return jsonify(get_interest_over_time(kw_list, timeframe=tf, geo=geo))
-    return jsonify(get_aesthetic_group_interest('viral_aesthetics'))
+    return jsonify(get_aesthetic_group_interest('aesthetics'))
 
 
 @api_bp.route('/google-trends/status')
@@ -341,6 +341,19 @@ def aesthetics():
 @api_bp.route('/aesthetics/<group>')
 def aesthetic_group(group):
     return jsonify(get_aesthetic_group_interest(group))
+
+
+@api_bp.route('/aesthetic-groups')
+def aesthetic_groups_list():
+    """Return the currently active (dynamically discovered) keyword groups."""
+    return jsonify(refresh_aesthetic_groups())
+
+
+@api_bp.route('/discover-trends')
+def discover_trends_endpoint():
+    """Return top trending fashion keywords discovered from all live sources."""
+    limit = min(int(request.args.get('limit', 40)), 100)
+    return jsonify(discover_trending_keywords(limit=limit))
 
 
 # ── Colors / Brands / Calendar / Wikipedia ────────────────────────────────────
