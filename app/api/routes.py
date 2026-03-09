@@ -676,7 +676,7 @@ def keys_register():
     if existing:
         return jsonify({
             'error': 'Email already registered.',
-            'message': 'An API key already exists for this email. Contact support to retrieve it.',
+            'message': 'An API key already exists for this email. Use the /keys page to verify your key.',
         }), 409
 
     api_key = 'rw_' + _secrets.token_urlsafe(32)

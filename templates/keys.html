@@ -480,7 +480,7 @@ document.getElementById('verifyForm').addEventListener('submit', async (e) => {
     document.getElementById('vUsed').textContent  = data.requests_today;
     document.getElementById('vLimit').textContent = data.daily_limit || '∞';
     document.getElementById('vCreated').textContent =
-      `Registered: ${data.created_at ? data.created_at.slice(0,10) : '—'}  ·  Last used: ${data.last_used ? data.last_used.slice(0,10) : 'never'}`;
+      `Registered: ${data.created_at ? data.created_at.slice(0,10) : '—'}  ·  Last used: ${data.last_used ? data.last_used.slice(0,10) : '—'}`;
     resEl.classList.remove('hidden');
 
   } catch (err) {

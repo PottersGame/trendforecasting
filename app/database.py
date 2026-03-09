@@ -513,9 +513,17 @@ def get_top_keywords_from_db(days: int = 7, limit: int = 40) -> List[Dict[str, A
 
 # ── API User Management ───────────────────────────────────────────────────────
 
+# Daily request limits per plan (0 = unlimited)
+_PLAN_DAILY_LIMITS: Dict[str, int] = {
+    'free':       100,
+    'pro':        5000,
+    'enterprise': 0,      # unlimited
+}
+
+
 def create_api_user(email: str, api_key: str, plan: str = 'free') -> Optional[Dict[str, Any]]:
     """Register a new API user. Returns user dict or None on duplicate email."""
-    daily_limit = {'free': 100, 'pro': 5000, 'enterprise': 0}.get(plan, 100)
+    daily_limit = _PLAN_DAILY_LIMITS.get(plan, _PLAN_DAILY_LIMITS['free'])
     sql = """
         INSERT INTO api_users (email, api_key, plan, daily_limit)
         VALUES (?, ?, ?, ?)
@@ -524,7 +532,7 @@ def create_api_user(email: str, api_key: str, plan: str = 'free') -> Optional[Di
         with _lock, _conn() as con:
             con.execute(sql, (email.lower().strip(), api_key, plan, daily_limit))
         return {'email': email, 'api_key': api_key, 'plan': plan, 'daily_limit': daily_limit}
-    except Exception:
+    except sqlite3.IntegrityError:
         return None
 
 
@@ -560,8 +568,8 @@ def increment_api_user_usage(api_key: str) -> bool:
 
     last_reset_str = user.get('last_reset', '')
     try:
-        last_reset_date = last_reset_str[:10]
-    except Exception:
+        last_reset_date = str(last_reset_str)[:10]
+    except (TypeError, ValueError):
         last_reset_date = ''
 
     if last_reset_date != today:

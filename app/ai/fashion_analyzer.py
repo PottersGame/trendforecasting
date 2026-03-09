@@ -75,14 +75,18 @@ def _ollama(prompt: str, host: str, model: str) -> str:
 def _gemini(prompt: str, api_key: str) -> str:
     """Call Google Gemini via REST API (free tier — no SDK required)."""
     url = (
-        f'https://generativelanguage.googleapis.com/v1beta/models/'
-        f'gemini-1.5-flash:generateContent?key={api_key}'
+        'https://generativelanguage.googleapis.com/v1beta/models/'
+        'gemini-1.5-flash:generateContent'
     )
+    headers = {
+        'x-goog-api-key': api_key,
+        'Content-Type': 'application/json',
+    }
     payload = {
         'contents': [{'parts': [{'text': f'{_SYSTEM}\n\n{prompt}'}]}],
         'generationConfig': {'maxOutputTokens': 450, 'temperature': 0.7},
     }
-    r = requests.post(url, json=payload, timeout=20)
+    r = requests.post(url, headers=headers, json=payload, timeout=20)
     r.raise_for_status()
     return r.json()['candidates'][0]['content']['parts'][0]['text'].strip()
 
