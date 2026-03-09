@@ -2,16 +2,41 @@
 Google Trends integration for fashion keywords.
 
 Uses pytrends (unofficial Google Trends API wrapper) — free, no key required.
-Tracks viral fashion aesthetics, style terms, and seasonal searches.
+Discovers trending fashion terms dynamically from Reddit, news, TikTok and
+Pinterest, then queries Google Trends for interest data.
 """
 
 import logging
+import re
 import time
 import random
 from typing import List, Dict, Any, Optional
 from app.utils import cache
 
 logger = logging.getLogger(__name__)
+
+# ── urllib3 2.x compatibility patch for pytrends ──────────────────────────────
+# pytrends uses Retry(method_whitelist=...) which was removed in urllib3 ≥2.0;
+# the argument was renamed to `allowed_methods`.  We patch the Retry class once
+# at import time so all subsequent uses (including inside pytrends) work with
+# both urllib3 1.x and 2.x.
+try:
+    from urllib3.util.retry import Retry as _Retry  # type: ignore
+    if not getattr(_Retry.__init__, '_mw_compat_patched', False):
+        _orig_retry_init = _Retry.__init__
+
+        def _compat_retry_init(self, *args, method_whitelist=None,  # type: ignore
+                               allowed_methods=None, **kwargs):
+            # Honour the old kwarg by forwarding it as the new one
+            if method_whitelist is not None and allowed_methods is None:
+                allowed_methods = method_whitelist
+            _orig_retry_init(self, *args, allowed_methods=allowed_methods,
+                             **kwargs)
+
+        _compat_retry_init._mw_compat_patched = True
+        _Retry.__init__ = _compat_retry_init  # type: ignore
+except Exception:
+    pass  # If urllib3 isn't present the import of pytrends will fail anyway
 
 try:
     from pytrends.request import TrendReq
@@ -24,40 +49,44 @@ except ImportError:
         "Run: pip install pytrends>=4.9.2"
     )
 
-# ── Fashion keyword groups tracked ────────────────────────────────────────────
-
-AESTHETIC_GROUPS: Dict[str, List[str]] = {
-    'viral_aesthetics': [
-        'quiet luxury', 'old money aesthetic', 'clean girl aesthetic',
-        'mob wife aesthetic', 'dark academia',
-    ],
-    'style_movements': [
-        'Y2K fashion', 'cottagecore', 'balletcore', 'gorpcore', 'coastal grandmother',
-    ],
-    'sustainable': [
-        'sustainable fashion', 'slow fashion', 'thrift shopping',
-        'vintage clothing', 'upcycled fashion',
-    ],
-    'streetwear': [
-        'streetwear', 'sneaker culture', 'hypebeast', 'drop culture', 'techwear',
-    ],
-    'luxury': [
-        'luxury fashion', 'Hermès', 'Chanel', 'Louis Vuitton', 'Bottega Veneta',
-    ],
-    'seasonal': [
-        'spring fashion 2025', 'summer fashion 2025',
-        'fall fashion 2025', 'winter fashion 2025', 'fashion week',
-    ],
-    'color_trends': [
-        'peach fuzz pantone', 'mocha mousse', 'butter yellow fashion',
-        'sage green fashion', 'cobalt blue fashion',
-    ],
+# ── Keyword-category matchers for dynamic grouping ───────────────────────────
+# Each entry maps a group name to a set of indicator words.  A candidate
+# keyword is assigned to the first group whose indicator words appear in it.
+_GROUP_MATCHERS: Dict[str, List[str]] = {
+    'luxury':     ['luxury', 'hermès', 'chanel', 'gucci', 'prada', 'lv',
+                   'dior', 'balenciaga', 'designer', 'couture'],
+    'sustainable': ['sustainab', 'eco', 'thrift', 'vintage', 'upcycl',
+                    'secondhand', 'slow fashion', 'resale', 'depop'],
+    'streetwear': ['streetwear', 'sneaker', 'hypebeast', 'drop', 'techwear',
+                   'hype', 'kicks', 'jordan', 'nike', 'adidas', 'supreme'],
+    'aesthetics': ['aesthetic', 'academia', 'cottagecore', 'mob wife',
+                   'clean girl', 'quiet luxury', 'old money', 'balletcore',
+                   'gorpcore', 'coastal', 'coquette', 'y2k', 'grunge',
+                   'preppy', 'bohemian', 'minimalist'],
+    'seasonal':   ['spring', 'summer', 'fall', 'winter', 'autumn',
+                   'fashion week', 'runway', 'collection', 'ss', 'fw'],
+    'beauty':     ['beauty', 'makeup', 'skincare', 'hair', 'nail',
+                   'glam', 'glow'],
+    'trending':   [],  # catch-all — every discovered keyword goes here too
 }
 
-# Flat list used for trending-search calls
-ALL_FASHION_KEYWORDS: List[str] = [
-    kw for group in AESTHETIC_GROUPS.values() for kw in group
-]
+# Minimum fallback keywords per group (used only when all live sources fail)
+_FALLBACK_GROUPS: Dict[str, List[str]] = {
+    'aesthetics':  ['quiet luxury', 'dark academia', 'coquette aesthetic',
+                    'mob wife aesthetic', 'clean girl aesthetic'],
+    'streetwear':  ['streetwear', 'sneaker culture', 'hypebeast', 'techwear',
+                    'drop culture'],
+    'sustainable': ['sustainable fashion', 'slow fashion', 'thrift shopping',
+                    'vintage clothing', 'upcycled fashion'],
+    'luxury':      ['luxury fashion', 'designer fashion', 'haute couture',
+                    'fashion week', 'runway fashion'],
+    'trending':    ['fashion trend', 'viral fashion', 'new fashion',
+                    'fashion 2025', 'style trend'],
+}
+
+# Module-level cache for the dynamically built groups
+# (refreshed at most every 30 minutes — same TTL as Google Trends data)
+AESTHETIC_GROUPS: Dict[str, List[str]] = dict(_FALLBACK_GROUPS)
 
 
 def _unavailable_reason() -> str:
@@ -89,9 +118,187 @@ def _client() -> Optional[object]:
         return None
 
 
+# ── Dynamic keyword discovery ─────────────────────────────────────────────────
+
+def discover_trending_keywords(limit: int = 60) -> List[str]:
+    """
+    Mine the top fashion keywords from Reddit, news RSS feeds, TikTok and
+    Pinterest data sources, then deduplicate and rank them.
+
+    Imported lazily to avoid circular imports at module load time.
+    Falls back to an empty list if all sources are unavailable.
+    """
+    cache_key = f'gtrends_discovered_kw_{limit}'
+    hit = cache.get(cache_key)
+    if hit is not None:
+        return hit
+
+    freq: Dict[str, int] = {}
+
+    # Source weights: news headlines carry the most signal (×3), Reddit and
+    # TikTok are medium (×2), and Pinterest is treated as supplementary (×1).
+    _WEIGHT_REDDIT    = 2
+    _WEIGHT_NEWS      = 3
+    _WEIGHT_TIKTOK    = 2
+    _WEIGHT_PINTEREST = 1
+
+    # ── Reddit ────────────────────────────────────────────────────────────────
+    try:
+        from app.data_sources.reddit_fashion import get_trending_keywords as _reddit_kw
+        for item in _reddit_kw(limit=50):
+            w = item.get('word', '').strip().lower()
+            if w:
+                freq[w] = freq.get(w, 0) + item.get('count', 1) * _WEIGHT_REDDIT
+    except Exception as exc:
+        logger.debug("Reddit keyword discovery failed: %s", exc)
+
+    # ── Fashion news ──────────────────────────────────────────────────────────
+    try:
+        from app.data_sources.fashion_news import (
+            get_fashion_news, extract_trending_keywords as _news_kw,
+        )
+        news = get_fashion_news(limit=80)
+        for item in _news_kw(news, top_n=50):
+            w = item.get('word', '').strip().lower()
+            if w:
+                freq[w] = freq.get(w, 0) + item.get('count', 1) * _WEIGHT_NEWS
+    except Exception as exc:
+        logger.debug("News keyword discovery failed: %s", exc)
+
+    # ── TikTok ────────────────────────────────────────────────────────────────
+    try:
+        from app.data_sources.tiktok_fashion import get_tiktok_trending_keywords as _tiktok_kw
+        for item in _tiktok_kw(limit=40):
+            w = item.get('word', '').strip().lower()
+            if w:
+                freq[w] = freq.get(w, 0) + item.get('count', 1) * _WEIGHT_TIKTOK
+    except Exception as exc:
+        logger.debug("TikTok keyword discovery failed: %s", exc)
+
+    # ── Pinterest ─────────────────────────────────────────────────────────────
+    try:
+        from app.data_sources.pinterest_fashion import get_pinterest_trending_keywords as _pin_kw
+        for item in _pin_kw(limit=40):
+            w = item.get('word', '').strip().lower()
+            if w:
+                freq[w] = freq.get(w, 0) + item.get('count', 1) * _WEIGHT_PINTEREST
+    except Exception as exc:
+        logger.debug("Pinterest keyword discovery failed: %s", exc)
+
+    # Filter out very short / non-alphabetic tokens and generic noise words
+    _STOP = {
+        'fashion', 'style', 'wear', 'wearing', 'wore', 'clothes', 'clothing',
+        'outfit', 'dress', 'shop', 'brand', 'new', 'look', 'love', 'best',
+        'good', 'great', 'the', 'and', 'for', 'this', 'that', 'with', 'from',
+        'one', 'all', 'get', 'buy', 'via', 'can', 'how', 'what', 'just',
+        'tiktok', 'trending', 'trend', 'video', 'post', 'share', 'like',
+        'follow', 'comment', 'viral', 'fyp', 'foryou', 'reels', 'reel',
+        'instagram', 'pinterest', 'reddit', 'youtube', 'twitter',
+    }
+    keywords = [
+        w for w, _ in sorted(freq.items(), key=lambda x: x[1], reverse=True)
+        if len(w) >= 4 and re.search(r'[a-z]', w) and w not in _STOP
+    ][:limit]
+
+    cache.set(cache_key, keywords, ttl=1800)
+    return keywords
+
+
 def _jitter() -> None:
     """Small random sleep to avoid rate-limiting."""
     time.sleep(random.uniform(0.4, 1.2))
+
+
+def _assign_group(keyword: str) -> str:
+    """Return the best matching group name for a keyword."""
+    kw_lower = keyword.lower()
+    for group, indicators in _GROUP_MATCHERS.items():
+        if group == 'trending':
+            continue
+        if any(ind in kw_lower for ind in indicators):
+            return group
+    return 'trending'
+
+
+def refresh_aesthetic_groups(force: bool = False) -> Dict[str, List[str]]:
+    """
+    Rebuild ``AESTHETIC_GROUPS`` from live data sources.
+
+    Results are cached for 30 minutes.  Pass ``force=True`` to bypass the
+    cache and always re-discover.  Falls back to ``_FALLBACK_GROUPS`` when
+    no live keywords can be discovered.
+    """
+    global AESTHETIC_GROUPS
+
+    cache_key = 'gtrends_aesthetic_groups'
+    if not force:
+        hit = cache.get(cache_key)
+        if hit is not None:
+            AESTHETIC_GROUPS = hit
+            return hit
+
+    keywords = discover_trending_keywords(limit=80)
+
+    if not keywords:
+        logger.info("No dynamic keywords discovered — using fallback groups")
+        AESTHETIC_GROUPS = dict(_FALLBACK_GROUPS)
+        cache.set(cache_key, AESTHETIC_GROUPS, ttl=1800)
+        return AESTHETIC_GROUPS
+
+    # Also pull today's Google Trends trending searches and add fashion ones
+    pt = _client()
+    if pt:
+        try:
+            _jitter()
+            df = pt.trending_searches(pn='united_states')
+            if df is not None and not df.empty:
+                _FASHION_SIGNALS = {
+                    'fashion', 'style', 'outfit', 'trend', 'wear', 'clothing',
+                    'dress', 'shoes', 'bag', 'luxury', 'beauty', 'makeup',
+                    'vintage', 'thrift', 'streetwear', 'sneaker', 'aesthetic',
+                }
+                for _, row in df.iterrows():
+                    term = str(row.iloc[0]).strip().lower()
+                    if any(sig in term for sig in _FASHION_SIGNALS):
+                        keywords.append(term)
+        except Exception as exc:
+            logger.debug("Could not fetch trending searches for group refresh: %s", exc)
+
+    # Deduplicate while preserving order
+    seen: set = set()
+    unique_kw: List[str] = []
+    for kw in keywords:
+        if kw not in seen:
+            seen.add(kw)
+            unique_kw.append(kw)
+
+    # Assign each keyword to a group
+    groups: Dict[str, List[str]] = {g: [] for g in _GROUP_MATCHERS}
+    for kw in unique_kw:
+        grp = _assign_group(kw)
+        groups[grp].append(kw)
+        groups['trending'].append(kw)  # all keywords feed the catch-all group
+
+    # Google Trends accepts at most 5 keywords per payload — keep exactly 5.
+    result: Dict[str, List[str]] = {}
+    for grp, kws in groups.items():
+        if kws:
+            result[grp] = kws[:5]  # hard Google Trends limit: max 5 keywords
+        elif grp in _FALLBACK_GROUPS:
+            result[grp] = _FALLBACK_GROUPS[grp][:5]
+
+    # Ensure every fallback group is represented
+    for grp, kws in _FALLBACK_GROUPS.items():
+        if grp not in result:
+            result[grp] = kws[:5]
+
+    AESTHETIC_GROUPS = result
+    cache.set(cache_key, result, ttl=1800)
+    logger.info(
+        "Aesthetic groups refreshed: %s",
+        {g: len(v) for g, v in result.items()},
+    )
+    return result
 
 
 # ── Public helpers ─────────────────────────────────────────────────────────────
@@ -179,9 +386,13 @@ def get_trending_fashion_searches() -> List[Dict[str, Any]]:
     return results
 
 
-def get_aesthetic_group_interest(group: str = 'viral_aesthetics') -> Dict[str, Any]:
-    """Interest-over-time for one of the predefined keyword groups."""
-    keywords = AESTHETIC_GROUPS.get(group, AESTHETIC_GROUPS['viral_aesthetics'])
+def get_aesthetic_group_interest(group: str = 'aesthetics') -> Dict[str, Any]:
+    """Interest-over-time for one of the dynamically-built keyword groups."""
+    groups = refresh_aesthetic_groups()
+    # Accept the old default name as an alias for 'aesthetics'
+    if group == 'viral_aesthetics':
+        group = 'aesthetics'
+    keywords = groups.get(group) or groups.get('aesthetics') or list(groups.values())[0]
     return get_interest_over_time(keywords[:5], timeframe='today 3-m')
 
 
@@ -189,14 +400,17 @@ def get_all_group_scores() -> Dict[str, float]:
     """
     Returns a dict {group_name: average_recent_score} for each aesthetic group.
     Uses the last 3 data points as 'current interest'.
+    Groups are refreshed from live data sources before scoring.
     """
     cache_key = 'gtrends_all_group_scores'
     hit = cache.get(cache_key)
     if hit is not None:
         return hit
 
+    groups = refresh_aesthetic_groups()
+
     scores: Dict[str, float] = {}
-    for group, keywords in AESTHETIC_GROUPS.items():
+    for group, keywords in groups.items():
         data = get_interest_over_time(keywords[:5], timeframe='today 3-m')
         values_list = list(data.get('data', {}).values())
         if values_list:
