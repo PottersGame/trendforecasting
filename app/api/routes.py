@@ -1,29 +1,50 @@
 """
 Fashion Trend Forecasting — API routes.
 
-All endpoints return JSON and are cached at the data-source level.
-No authentication required.
+All endpoints return JSON.
 
-Endpoints
-─────────
-GET /api/dashboard          Overall dashboard summary
-GET /api/trends             Scored & ranked fashion trends
-GET /api/news               Latest fashion news
-GET /api/news/<tag>         News filtered by tag
-GET /api/reddit             Top Reddit fashion posts
-GET /api/reddit/keywords    Trending Reddit keywords
-GET /api/reddit/activity    Per-subreddit engagement stats
-GET /api/google-trends      Google Trends interest-over-time
-GET /api/aesthetics         Aesthetic group interest scores
-GET /api/colors             Color trend palette
-GET /api/brands             Brand mention counts
-GET /api/calendar           Fashion event calendar
-GET /api/wikipedia          Trending Wikipedia fashion articles
-GET /api/ai/trend/<name>    AI analysis for one trend
-GET /api/ai/overview        AI overview of top trends
-GET /api/ai/season          AI seasonal outlook
-GET /api/ai/news-analysis   AI analysis of news headlines
-GET /api/sources            Data-source health check
+Core Endpoints
+──────────────
+GET  /api/dashboard          Overall dashboard summary
+GET  /api/trends             Scored & ranked fashion trends
+GET  /api/news               Latest fashion news
+GET  /api/news/<tag>         News filtered by tag
+GET  /api/reddit             Top Reddit fashion posts
+GET  /api/reddit/keywords    Trending Reddit keywords
+GET  /api/reddit/activity    Per-subreddit engagement stats
+GET  /api/google-trends      Google Trends interest-over-time
+GET  /api/aesthetics         Aesthetic group interest scores
+GET  /api/colors             Color trend palette
+GET  /api/brands             Brand mention counts
+GET  /api/calendar           Fashion event calendar
+GET  /api/wikipedia          Trending Wikipedia fashion articles
+GET  /api/keywords           Merged keyword frequency
+
+Search (RAG)
+────────────
+GET  /api/search?q=<query>   Search DB + AI analysis
+GET  /api/search/news?q=     Search stored news articles
+GET  /api/search/reddit?q=   Search stored Reddit posts
+
+Forecasting
+───────────
+GET  /api/forecast           All trend forecasts (ML from DB)
+GET  /api/forecast/<name>    Single-trend forecast
+GET  /api/forecast/leaderboard Top trends by 7-day forecast
+
+AI Endpoints
+────────────
+GET  /api/ai/trend/<name>    AI analysis for one trend
+GET  /api/ai/tip/<name>      Style tip for a trend
+GET  /api/ai/overview        AI overview of top trends
+GET  /api/ai/season          AI seasonal outlook
+GET  /api/ai/news-analysis   AI analysis of latest headlines
+GET  /api/ai/models          Available Ollama models
+
+Database
+────────
+GET  /api/db/stats           Database statistics
+POST /api/db/ingest          Fetch all sources and save to DB
 """
 
 from __future__ import annotations
@@ -51,30 +72,34 @@ from app.models import (
     score_trends, score_brands, get_color_trends,
     get_current_season, get_fashion_calendar,
 )
+from app.models.forecaster import (
+    get_forecasts, get_trend_forecast, trend_leaderboard,
+)
 from app.ai.fashion_analyzer import (
     analyse_trend, analyse_top_trends,
     analyse_seasonal_outlook, generate_style_tip,
-    analyse_news_headlines,
+    analyse_news_headlines, search_and_analyse,
+    get_ollama_models,
 )
+from app import database as db
 from app.utils import cache
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# ── Internal helpers ───────────────────────────────────────────────────────────
 
-def _build_text_pool() -> list[str]:
-    """Collect all titles/descriptions from news + Reddit for keyword scoring."""
-    pool: list[str] = []
-    for art in get_fashion_news(limit=100):
-        pool.append(art.get('title', ''))
-        pool.append(art.get('description', ''))
-    for post in get_all_fashion_posts(limit_per_sub=20):
-        pool.append(post.get('title', ''))
+def _build_text_pool() -> list:
+    pool = []
+    for a in get_fashion_news(limit=100):
+        pool.append(a.get('title', ''))
+        pool.append(a.get('description', ''))
+    for p in get_all_fashion_posts(limit_per_sub=20):
+        pool.append(p.get('title', ''))
     return pool
 
 
-def _cached_text_pool() -> list[str]:
+def _cached_text_pool() -> list:
     hit = cache.get('text_pool')
     if hit is not None:
         return hit
@@ -83,45 +108,104 @@ def _cached_text_pool() -> list[str]:
     return pool
 
 
-# ── Routes ─────────────────────────────────────────────────────────────────────
+def _ingest_all() -> dict:
+    """Fetch everything and persist to DB. Returns summary counts."""
+    news   = get_fashion_news(limit=100)
+    reddit = get_all_fashion_posts(limit_per_sub=25)
+    text_pool = [a.get('title','') + ' ' + a.get('description','') for a in news] + \
+                [p.get('title','') for p in reddit]
+
+    trends  = score_trends(text_pool)
+    brands  = score_brands(text_pool)
+    kw_news = extract_trending_keywords(news, top_n=40)
+    kw_reddit = reddit_keywords(limit=40)
+
+    # Merge keywords
+    merged: dict = {}
+    for kw in kw_news:
+        merged[kw['word']] = merged.get(kw['word'], 0) + kw['count'] * 2
+    for kw in kw_reddit:
+        merged[kw['word']] = merged.get(kw['word'], 0) + kw['count']
+    kw_merged = [{'word': w, 'count': c} for w, c in
+                 sorted(merged.items(), key=lambda x: x[1], reverse=True)[:50]]
+
+    n_news   = db.save_news_articles(news)
+    n_reddit = db.save_reddit_posts(reddit)
+    db.save_trend_snapshot(trends)
+    db.save_keyword_snapshot(kw_merged, source='merged')
+    db.save_brand_snapshot(brands)
+
+    # Google Trends (best-effort — may be rate-limited)
+    try:
+        for group, keywords in list(AESTHETIC_GROUPS.items())[:3]:
+            data = get_aesthetic_group_interest(group)
+            dates = data.get('dates', [])
+            for kw, vals in data.get('data', {}).items():
+                if dates and vals:
+                    db.save_google_trends(kw, dates, vals, group)
+    except Exception:
+        pass
+
+    # Recompute forecasts now that we have fresh snapshots
+    try:
+        from app.models.forecaster import compute_forecasts
+        cache.delete('forecasts_computed')
+        compute_forecasts()
+    except Exception:
+        pass
+
+    return {
+        'new_news':    n_news,
+        'new_reddit':  n_reddit,
+        'trends_saved': len(trends),
+        'keywords_saved': len(kw_merged),
+    }
+
+
+# ── Dashboard ──────────────────────────────────────────────────────────────────
 
 @api_bp.route('/dashboard')
 def dashboard():
-    """All-in-one dashboard payload."""
     hit = cache.get('dashboard')
-    if hit is not None:
+    if hit:
         return jsonify(hit)
 
     text_pool = _cached_text_pool()
 
-    # Fetch everything concurrently
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
-        f_news       = ex.submit(get_fashion_news,       60)
-        f_reddit     = ex.submit(get_all_fashion_posts,  15)
-        f_trends     = ex.submit(score_trends,           text_pool)
-        f_brands     = ex.submit(score_brands,           text_pool)
-        f_keywords   = ex.submit(reddit_keywords,        40)
-        f_wiki       = ex.submit(get_top_fashion_articles)
-        f_activity   = ex.submit(get_subreddit_activity)
-        f_calendar   = ex.submit(get_fashion_calendar)
+        f_news     = ex.submit(get_fashion_news, 60)
+        f_reddit   = ex.submit(get_all_fashion_posts, 15)
+        f_trends   = ex.submit(score_trends, text_pool)
+        f_brands   = ex.submit(score_brands, text_pool)
+        f_keywords = ex.submit(reddit_keywords, 40)
+        f_wiki     = ex.submit(get_top_fashion_articles)
+        f_activity = ex.submit(get_subreddit_activity)
+        f_calendar = ex.submit(get_fashion_calendar)
 
-    news       = f_news.result()
-    reddit     = f_reddit.result()
-    trends     = f_trends.result()
-    brands     = f_brands.result()
-    keywords   = f_keywords.result()
-    wiki       = f_wiki.result()
-    activity   = f_activity.result()
-    cal        = f_calendar.result()
-    season     = get_current_season()
-    colors     = get_color_trends()
+    news      = f_news.result()
+    reddit    = f_reddit.result()
+    trends    = f_trends.result()
+    brands    = f_brands.result()
+    keywords  = f_keywords.result()
+    wiki      = f_wiki.result()
+    activity  = f_activity.result()
+    cal       = f_calendar.result()
+    season    = get_current_season()
+    colors    = get_color_trends()
 
-    # AI overview (non-blocking — skip if too slow)
+    # Best-effort AI overview (non-blocking)
     ai_overview = ''
+    ai_model    = 'rule-based'
     try:
-        ai_overview = analyse_top_trends(trends[:5])
+        ai_overview, ai_model = analyse_top_trends(trends[:5])
     except Exception:
         pass
+
+    # DB stats for dashboard KPIs
+    try:
+        db_stats = db.get_db_stats()
+    except Exception:
+        db_stats = {}
 
     data = {
         'season':       season,
@@ -135,20 +219,22 @@ def dashboard():
         'calendar':     cal,
         'colors':       colors,
         'ai_overview':  ai_overview,
-        'source_count': 4,
+        'ai_model':     ai_model,
+        'db_stats':     db_stats,
     }
-
     cache.set('dashboard', data, ttl=300)
     return jsonify(data)
 
 
+# ── Trends ─────────────────────────────────────────────────────────────────────
+
 @api_bp.route('/trends')
 def trends():
-    """Scored and ranked fashion trends."""
     text_pool = _cached_text_pool()
-    data = score_trends(text_pool)
-    return jsonify(data)
+    return jsonify(score_trends(text_pool))
 
+
+# ── News ───────────────────────────────────────────────────────────────────────
 
 @api_bp.route('/news')
 def news():
@@ -157,10 +243,12 @@ def news():
 
 
 @api_bp.route('/news/<tag>')
-def news_by_tag(tag: str):
+def news_by_tag(tag):
     limit = min(int(request.args.get('limit', 20)), 60)
     return jsonify(get_news_by_tag(tag, limit=limit))
 
+
+# ── Reddit ─────────────────────────────────────────────────────────────────────
 
 @api_bp.route('/reddit')
 def reddit():
@@ -186,6 +274,8 @@ def reddit_top():
     return jsonify(get_top_posts(limit=10))
 
 
+# ── Google Trends ──────────────────────────────────────────────────────────────
+
 @api_bp.route('/google-trends')
 def google_trends():
     keywords = request.args.get('keywords', '')
@@ -198,20 +288,20 @@ def google_trends():
     if keywords:
         kw_list = [k.strip() for k in keywords.split(',') if k.strip()][:5]
         return jsonify(get_interest_over_time(kw_list, timeframe=tf, geo=geo))
-    # Default: viral aesthetics
     return jsonify(get_aesthetic_group_interest('viral_aesthetics'))
 
 
 @api_bp.route('/aesthetics')
 def aesthetics():
-    scores = get_all_group_scores()
-    return jsonify(scores)
+    return jsonify(get_all_group_scores())
 
 
 @api_bp.route('/aesthetics/<group>')
-def aesthetic_group(group: str):
+def aesthetic_group(group):
     return jsonify(get_aesthetic_group_interest(group))
 
+
+# ── Colors / Brands / Calendar / Wikipedia ────────────────────────────────────
 
 @api_bp.route('/colors')
 def colors():
@@ -239,34 +329,182 @@ def wikipedia():
     return jsonify(data)
 
 
+@api_bp.route('/keywords')
+def keywords():
+    news_data  = get_fashion_news(limit=80)
+    kw_news    = extract_trending_keywords(news_data, top_n=30)
+    kw_reddit  = reddit_keywords(limit=30)
+    merged: dict = {}
+    for kw in kw_news:
+        merged[kw['word']] = merged.get(kw['word'], 0) + kw['count'] * 2
+    for kw in kw_reddit:
+        merged[kw['word']] = merged.get(kw['word'], 0) + kw['count']
+    sorted_kw = sorted(merged.items(), key=lambda x: x[1], reverse=True)
+    return jsonify([{'word': w, 'count': c} for w, c in sorted_kw[:40]])
+
+
+# ── SEARCH (RAG) ───────────────────────────────────────────────────────────────
+
+@api_bp.route('/search')
+def search():
+    """
+    Search our DB for a query, inject results into the LLM, return AI analysis.
+    Also returns the raw matching records.
+    """
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify({'error': 'Missing q parameter'}), 400
+
+    raw_results = db.search_all(query, limit=10)
+    analysis, model = search_and_analyse(query)
+
+    return jsonify({
+        'query':    query,
+        'analysis': analysis,
+        'model':    model,
+        'news':     raw_results.get('news', []),
+        'reddit':   raw_results.get('reddit', []),
+    })
+
+
+@api_bp.route('/search/news')
+def search_news():
+    query = request.args.get('q', '').strip()
+    limit = min(int(request.args.get('limit', 10)), 50)
+    if not query:
+        return jsonify(db.get_recent_news(limit=limit))
+    return jsonify(db.search_news(query, limit=limit))
+
+
+@api_bp.route('/search/reddit')
+def search_reddit():
+    query = request.args.get('q', '').strip()
+    limit = min(int(request.args.get('limit', 10)), 50)
+    if not query:
+        return jsonify(db.get_top_reddit_posts(limit=limit))
+    return jsonify(db.search_reddit(query, limit=limit))
+
+
+@api_bp.route('/search/keywords')
+def search_db_keywords():
+    """Top keywords from DB history (more stable than live counts)."""
+    days  = int(request.args.get('days', 7))
+    limit = min(int(request.args.get('limit', 40)), 100)
+    return jsonify(db.get_top_keywords_from_db(days=days, limit=limit))
+
+
+# ── FORECASTING ────────────────────────────────────────────────────────────────
+
+@api_bp.route('/forecast')
+def forecast():
+    """ML-computed trend forecasts using historical DB data."""
+    try:
+        return jsonify(get_forecasts())
+    except Exception as e:
+        return jsonify({'error': str(e), 'forecasts': db.get_latest_forecasts()})
+
+
+@api_bp.route('/forecast/leaderboard')
+def forecast_leaderboard():
+    limit = min(int(request.args.get('limit', 10)), 20)
+    try:
+        return jsonify(trend_leaderboard(limit=limit))
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+@api_bp.route('/forecast/<path:name>')
+def forecast_single(name):
+    result = get_trend_forecast(name)
+    if not result:
+        return jsonify({'error': f'No forecast found for "{name}"'}), 404
+    return jsonify(result)
+
+
+# ── AI ─────────────────────────────────────────────────────────────────────────
+
 @api_bp.route('/ai/trend/<path:name>')
-def ai_trend(name: str):
-    return jsonify({'trend': name, 'analysis': analyse_trend(name)})
+def ai_trend(name):
+    text, model = analyse_trend(name)
+    return jsonify({'trend': name, 'analysis': text, 'model': model})
 
 
 @api_bp.route('/ai/tip/<path:name>')
-def ai_tip(name: str):
-    return jsonify({'trend': name, 'tip': generate_style_tip(name)})
+def ai_tip(name):
+    text, model = generate_style_tip(name)
+    return jsonify({'trend': name, 'tip': text, 'model': model})
 
 
 @api_bp.route('/ai/overview')
 def ai_overview():
     text_pool = _cached_text_pool()
     trends    = score_trends(text_pool)
-    return jsonify({'analysis': analyse_top_trends(trends[:5])})
+    text, model = analyse_top_trends(trends[:5])
+    return jsonify({'analysis': text, 'model': model})
 
 
 @api_bp.route('/ai/season')
 def ai_season():
     season = request.args.get('season', get_current_season())
-    return jsonify({'season': season, 'analysis': analyse_seasonal_outlook(season)})
+    text, model = analyse_seasonal_outlook(season)
+    return jsonify({'season': season, 'analysis': text, 'model': model})
 
 
 @api_bp.route('/ai/news-analysis')
 def ai_news():
-    news     = get_fashion_news(limit=20)
-    headlines = [a['title'] for a in news]
-    return jsonify({'analysis': analyse_news_headlines(headlines)})
+    news_data = get_fashion_news(limit=20)
+    headlines = [a['title'] for a in news_data]
+    text, model = analyse_news_headlines(headlines)
+    return jsonify({'analysis': text, 'model': model})
+
+
+@api_bp.route('/ai/models')
+def ai_models():
+    """List available Ollama models on the local instance."""
+    host   = current_app.config.get('OLLAMA_HOST', 'http://localhost:11434')
+    models = get_ollama_models(host)
+    return jsonify({
+        'ollama_host':    host,
+        'ollama_model':   current_app.config.get('OLLAMA_MODEL', 'llama3'),
+        'available':      models,
+        'groq_enabled':   bool(current_app.config.get('GROQ_API_KEY')),
+        'openai_enabled': bool(current_app.config.get('OPENAI_API_KEY')),
+        'ollama_running': bool(models),
+    })
+
+
+# ── DATABASE ───────────────────────────────────────────────────────────────────
+
+@api_bp.route('/db/stats')
+def db_stats():
+    return jsonify(db.get_db_stats())
+
+
+@api_bp.route('/db/ingest', methods=['POST', 'GET'])
+def db_ingest():
+    """
+    Trigger a full data ingest: fetch all sources, save to DB,
+    and recompute forecasts. Safe to call repeatedly.
+    """
+    try:
+        result = _ingest_all()
+        result['status'] = 'ok'
+        result['db_stats'] = db.get_db_stats()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@api_bp.route('/db/history/<path:trend>')
+def db_history(trend):
+    days = int(request.args.get('days', 30))
+    return jsonify(db.get_trend_history(trend, days=days))
+
+
+@api_bp.route('/db/history')
+def db_all_history():
+    days = int(request.args.get('days', 14))
+    return jsonify(db.get_all_trend_history(days=days))
 
 
 @api_bp.route('/related-queries')
@@ -280,34 +518,18 @@ def trending_searches():
     return jsonify(get_trending_fashion_searches())
 
 
-@api_bp.route('/keywords')
-def keywords():
-    news     = get_fashion_news(limit=80)
-    kw_news  = extract_trending_keywords(news, top_n=30)
-    kw_reddit = reddit_keywords(limit=30)
-    # Merge and re-sort
-    merged: dict[str, int] = {}
-    for kw in kw_news:
-        merged[kw['word']] = merged.get(kw['word'], 0) + kw['count'] * 2
-    for kw in kw_reddit:
-        merged[kw['word']] = merged.get(kw['word'], 0) + kw['count']
-    sorted_kw = sorted(merged.items(), key=lambda x: x[1], reverse=True)
-    return jsonify([{'word': w, 'count': c} for w, c in sorted_kw[:40]])
-
-
 @api_bp.route('/sources')
 def sources():
-    """Report which data sources are reachable."""
-    results: dict[str, bool] = {}
+    results = {}
     checks = [
-        ('fashion_news',   lambda: bool(get_fashion_news(limit=3))),
-        ('reddit',         lambda: bool(get_all_fashion_posts(limit_per_sub=3))),
-        ('wikipedia',      lambda: bool(get_top_fashion_articles())),
+        ('fashion_news', lambda: bool(get_fashion_news(limit=3))),
+        ('reddit',       lambda: bool(get_all_fashion_posts(limit_per_sub=3))),
+        ('wikipedia',    lambda: bool(get_top_fashion_articles())),
+        ('database',     lambda: bool(db.get_db_stats())),
     ]
     for name, fn in checks:
         try:
             results[name] = fn()
         except Exception:
             results[name] = False
-
     return jsonify(results)

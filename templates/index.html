@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VOGUE AI — Fashion Trend Forecasting</title>
+  <title>RUNWAY AI — Fashion Trend Forecasting</title>
+  <!-- Fonts: Google Fonts preferred, system-font stack fallback when offline -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <!-- Chart.js — bundled locally so the app works fully offline -->
+  <script src="/static/js/vendor/chart.min.js"></script>
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
@@ -17,50 +18,32 @@
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <span class="logo-icon">✦</span>
-    <span class="logo-text">VOGUE AI</span>
+    <span class="logo-text">RUNWAY AI</span>
   </div>
   <nav class="sidebar-nav">
-    <a href="#dashboard"   class="nav-item active" data-section="dashboard">
-      <span class="nav-icon">◈</span> Dashboard
-    </a>
-    <a href="#trends"      class="nav-item" data-section="trends">
-      <span class="nav-icon">↑</span> Trend Radar
-    </a>
-    <a href="#aesthetics"  class="nav-item" data-section="aesthetics">
-      <span class="nav-icon">◎</span> Aesthetics
-    </a>
-    <a href="#google"      class="nav-item" data-section="google">
-      <span class="nav-icon">◐</span> Search Pulse
-    </a>
-    <a href="#colors"      class="nav-item" data-section="colors">
-      <span class="nav-icon">◉</span> Color Trends
-    </a>
-    <a href="#social"      class="nav-item" data-section="social">
-      <span class="nav-icon">◑</span> Social Buzz
-    </a>
-    <a href="#news"        class="nav-item" data-section="news">
-      <span class="nav-icon">◫</span> Editorial Feed
-    </a>
-    <a href="#brands"      class="nav-item" data-section="brands">
-      <span class="nav-icon">◆</span> Brand Pulse
-    </a>
-    <a href="#calendar"    class="nav-item" data-section="calendar">
-      <span class="nav-icon">◷</span> Fashion Calendar
-    </a>
-    <a href="#ai"          class="nav-item" data-section="ai">
-      <span class="nav-icon">✦</span> AI Analyst
-    </a>
+    <a href="#dashboard"   class="nav-item active" data-section="dashboard"><span class="nav-icon">◈</span> Dashboard</a>
+    <a href="#trends"      class="nav-item" data-section="trends"><span class="nav-icon">↑</span> Trend Radar</a>
+    <a href="#forecast"    class="nav-item" data-section="forecast"><span class="nav-icon">◌</span> AI Forecast</a>
+    <a href="#aesthetics"  class="nav-item" data-section="aesthetics"><span class="nav-icon">◎</span> Aesthetics</a>
+    <a href="#google"      class="nav-item" data-section="google"><span class="nav-icon">◐</span> Search Pulse</a>
+    <a href="#colors"      class="nav-item" data-section="colors"><span class="nav-icon">◉</span> Color Trends</a>
+    <a href="#social"      class="nav-item" data-section="social"><span class="nav-icon">◑</span> Social Buzz</a>
+    <a href="#news"        class="nav-item" data-section="news"><span class="nav-icon">◫</span> Editorial Feed</a>
+    <a href="#brands"      class="nav-item" data-section="brands"><span class="nav-icon">◆</span> Brand Pulse</a>
+    <a href="#search"      class="nav-item" data-section="search"><span class="nav-icon">⊕</span> DB Search</a>
+    <a href="#calendar"    class="nav-item" data-section="calendar"><span class="nav-icon">◷</span> Fashion Calendar</a>
+    <a href="#ai"          class="nav-item" data-section="ai"><span class="nav-icon">✦</span> AI Analyst</a>
   </nav>
   <div class="sidebar-footer">
     <div class="season-badge" id="seasonBadge">— Season —</div>
-    <p class="sidebar-credit">Real-time data from Vogue, Elle, WWD,<br>Hypebeast, Reddit, Google & Wikipedia</p>
+    <button class="ingest-btn" data-action="ingest">⬇ Ingest Data</button>
+    <p class="sidebar-credit">Sources: Vogue · Elle · WWD · Hypebeast<br>Reddit · Google Trends · Wikipedia</p>
   </div>
 </aside>
 
 <!-- ── MAIN CONTENT ──────────────────────────────────────────── -->
 <main class="main">
 
-  <!-- Top bar -->
   <header class="topbar">
     <button class="menu-toggle" id="menuToggle">☰</button>
     <h1 class="topbar-title">Fashion Trend Forecasting</h1>
@@ -71,7 +54,6 @@
     </div>
   </header>
 
-  <!-- Loading overlay -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loader-ring"></div>
     <p class="loader-text">Scanning the fashion world…</p>
@@ -81,64 +63,26 @@
   <section class="section active" id="dashboard">
     <div class="section-header">
       <h2 class="section-title">Fashion Intelligence Dashboard</h2>
-      <p class="section-sub">Aggregated from 12+ sources — Vogue, Elle, WWD, Hypebeast, Reddit, Google Trends & Wikipedia</p>
+      <p class="section-sub">Aggregated from 12+ sources — Vogue, Elle, WWD, Hypebeast, Reddit, Google Trends &amp; Wikipedia</p>
     </div>
-
-    <!-- KPI row -->
-    <div class="kpi-grid" id="kpiGrid">
-      <div class="kpi-card">
-        <div class="kpi-icon">↑</div>
-        <div class="kpi-value" id="kpiTopTrend">—</div>
-        <div class="kpi-label">Hottest Trend</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon">◎</div>
-        <div class="kpi-value" id="kpiTopAesthetic">—</div>
-        <div class="kpi-label">Lead Aesthetic</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon">◑</div>
-        <div class="kpi-value" id="kpiRedditPosts">—</div>
-        <div class="kpi-label">Reddit Posts Analysed</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon">◫</div>
-        <div class="kpi-value" id="kpiNewsArticles">—</div>
-        <div class="kpi-label">News Articles Today</div>
-      </div>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-icon">↑</div><div class="kpi-value" id="kpiTopTrend">—</div><div class="kpi-label">Hottest Trend</div></div>
+      <div class="kpi-card"><div class="kpi-icon">◎</div><div class="kpi-value" id="kpiTopAesthetic">—</div><div class="kpi-label">Lead Aesthetic</div></div>
+      <div class="kpi-card"><div class="kpi-icon">◑</div><div class="kpi-value" id="kpiRedditPosts">—</div><div class="kpi-label">Reddit Posts in DB</div></div>
+      <div class="kpi-card"><div class="kpi-icon">◫</div><div class="kpi-value" id="kpiNewsArticles">—</div><div class="kpi-label">News Articles in DB</div></div>
     </div>
-
-    <!-- AI Overview banner -->
-    <div class="ai-banner" id="aiOverviewBanner">
+    <div class="ai-banner">
       <div class="ai-banner-label">✦ AI TREND ANALYST</div>
       <p class="ai-banner-text" id="aiOverviewText">Loading AI analysis…</p>
     </div>
-
-    <!-- Main charts row -->
     <div class="charts-row">
-      <div class="chart-card wide">
-        <h3 class="chart-title">Trend Momentum Score</h3>
-        <canvas id="trendMomentumChart"></canvas>
-      </div>
-      <div class="chart-card">
-        <h3 class="chart-title">Category Distribution</h3>
-        <canvas id="categoryDonutChart"></canvas>
-      </div>
+      <div class="chart-card wide"><h3 class="chart-title">Trend Momentum Score</h3><canvas id="trendMomentumChart"></canvas></div>
+      <div class="chart-card"><h3 class="chart-title">Category Distribution</h3><canvas id="categoryDonutChart"></canvas></div>
     </div>
-
-    <!-- Secondary charts -->
     <div class="charts-row">
-      <div class="chart-card">
-        <h3 class="chart-title">Subreddit Engagement</h3>
-        <canvas id="subredditChart"></canvas>
-      </div>
-      <div class="chart-card">
-        <h3 class="chart-title">Brand Buzz</h3>
-        <canvas id="brandBuzzChart"></canvas>
-      </div>
+      <div class="chart-card"><h3 class="chart-title">Subreddit Engagement</h3><canvas id="subredditChart"></canvas></div>
+      <div class="chart-card"><h3 class="chart-title">Brand Buzz</h3><canvas id="brandBuzzChart"></canvas></div>
     </div>
-
-    <!-- Top fashion posts grid -->
     <h3 class="subsection-title">Top Trending Posts</h3>
     <div class="post-grid" id="topPostsGrid"></div>
   </section>
@@ -147,7 +91,7 @@
   <section class="section" id="trends">
     <div class="section-header">
       <h2 class="section-title">Trend Radar</h2>
-      <p class="section-sub">Scored by real-time keyword frequency across news, Reddit & Google</p>
+      <p class="section-sub">Scored by real-time keyword frequency across news, Reddit &amp; Google</p>
     </div>
     <div class="trend-filter-row">
       <button class="filter-btn active" data-cat="all">All</button>
@@ -161,6 +105,28 @@
     <div class="trend-list" id="trendList"></div>
   </section>
 
+  <!-- ── AI FORECAST ── -->
+  <section class="section" id="forecast">
+    <div class="section-header">
+      <h2 class="section-title">AI Forecast</h2>
+      <p class="section-sub">ML-based trend projections (7 / 14 / 30 day) from historical database. Ingest data to train the forecasts.</p>
+    </div>
+    <div class="db-ingest-banner">
+      <div class="ingest-info">
+        <strong>How it works:</strong> Each time you ingest data, trend scores are saved to the SQLite database.
+        The ML forecaster uses linear regression over accumulated snapshots to project trend scores forward.
+        More snapshots = higher confidence.
+      </div>
+      <button class="search-btn" data-action="ingest">⬇ Ingest Data Now</button>
+    </div>
+    <div class="chart-card full-width mt-md">
+      <h3 class="chart-title">Trend Score Projections (Current vs 7d / 14d / 30d)</h3>
+      <canvas id="forecastBarChart"></canvas>
+    </div>
+    <h3 class="subsection-title">Forecast Leaderboard</h3>
+    <div class="trend-list" id="forecastList"></div>
+  </section>
+
   <!-- ── AESTHETICS ── -->
   <section class="section" id="aesthetics">
     <div class="section-header">
@@ -168,24 +134,12 @@
       <p class="section-sub">Google Trends interest scores for viral fashion aesthetics</p>
     </div>
     <div class="charts-row">
-      <div class="chart-card wide">
-        <h3 class="chart-title">Viral Aesthetics — Interest Over Time</h3>
-        <canvas id="aestheticsTimeChart"></canvas>
-      </div>
-      <div class="chart-card">
-        <h3 class="chart-title">Style Movements</h3>
-        <canvas id="styleMovementsChart"></canvas>
-      </div>
+      <div class="chart-card wide"><h3 class="chart-title">Viral Aesthetics — Interest Over Time</h3><canvas id="aestheticsTimeChart"></canvas></div>
+      <div class="chart-card"><h3 class="chart-title">Style Movements</h3><canvas id="styleMovementsChart"></canvas></div>
     </div>
     <div class="charts-row">
-      <div class="chart-card">
-        <h3 class="chart-title">Sustainable Fashion</h3>
-        <canvas id="sustainableChart"></canvas>
-      </div>
-      <div class="chart-card">
-        <h3 class="chart-title">Luxury Fashion</h3>
-        <canvas id="luxuryChart"></canvas>
-      </div>
+      <div class="chart-card"><h3 class="chart-title">Sustainable Fashion</h3><canvas id="sustainableChart"></canvas></div>
+      <div class="chart-card"><h3 class="chart-title">Luxury Fashion</h3><canvas id="luxuryChart"></canvas></div>
     </div>
     <div class="aesthetic-cards" id="aestheticCards"></div>
   </section>
@@ -194,10 +148,10 @@
   <section class="section" id="google">
     <div class="section-header">
       <h2 class="section-title">Search Pulse</h2>
-      <p class="section-sub">What the world is searching for in fashion right now</p>
+      <p class="section-sub">Google Trends — what the world is searching for in fashion right now</p>
     </div>
     <div class="search-input-row">
-      <input type="text" id="searchInput" class="search-input" placeholder="Enter fashion keywords, comma-separated…" />
+      <input type="text" id="searchInput" class="search-input" placeholder="Enter fashion keywords, comma-separated (e.g. quiet luxury, Y2K, balletcore)…" />
       <button class="search-btn" id="searchBtn">Analyse →</button>
     </div>
     <div class="chart-card full-width">
@@ -205,22 +159,16 @@
       <canvas id="searchTrendsChart"></canvas>
     </div>
     <div class="charts-row mt-md">
-      <div class="chart-card">
-        <h3 class="chart-title">Rising Queries</h3>
-        <div id="risingQueries" class="query-list"></div>
-      </div>
-      <div class="chart-card">
-        <h3 class="chart-title">Top Queries</h3>
-        <div id="topQueries" class="query-list"></div>
-      </div>
+      <div class="chart-card"><h3 class="chart-title">Rising Queries</h3><div id="risingQueries" class="query-list"></div></div>
+      <div class="chart-card"><h3 class="chart-title">Top Queries</h3><div id="topQueries" class="query-list"></div></div>
     </div>
   </section>
 
-  <!-- ── COLOR TRENDS ── -->
+  <!-- ── COLORS ── -->
   <section class="section" id="colors">
     <div class="section-header">
       <h2 class="section-title">Color Trends</h2>
-      <p class="section-sub">The palette defining fashion right now — inspired by Pantone seasonal forecasts</p>
+      <p class="section-sub">The palette defining fashion right now — Pantone-inspired seasonal forecasts</p>
     </div>
     <div class="color-palette" id="colorPalette"></div>
     <div class="chart-card full-width mt-md">
@@ -233,17 +181,11 @@
   <section class="section" id="social">
     <div class="section-header">
       <h2 class="section-title">Social Buzz</h2>
-      <p class="section-sub">Reddit fashion communities — trending topics & community engagement</p>
+      <p class="section-sub">Reddit fashion communities — trending topics &amp; community engagement</p>
     </div>
     <div class="charts-row">
-      <div class="chart-card wide">
-        <h3 class="chart-title">Community Activity (Total Score)</h3>
-        <canvas id="communityChart"></canvas>
-      </div>
-      <div class="chart-card">
-        <h3 class="chart-title">Word Cloud</h3>
-        <div class="word-cloud" id="wordCloud"></div>
-      </div>
+      <div class="chart-card wide"><h3 class="chart-title">Community Activity (Total Score)</h3><canvas id="communityChart"></canvas></div>
+      <div class="chart-card"><h3 class="chart-title">Trending Keywords</h3><div class="word-cloud" id="wordCloud"></div></div>
     </div>
     <div class="category-tabs" id="redditCategoryTabs">
       <button class="tab-btn active" data-cat="">All</button>
@@ -261,7 +203,7 @@
   <section class="section" id="news">
     <div class="section-header">
       <h2 class="section-title">Editorial Feed</h2>
-      <p class="section-sub">Latest from Vogue, Elle, Harper's Bazaar, WWD, Hypebeast & more</p>
+      <p class="section-sub">Latest from Vogue, Elle, Harper's Bazaar, WWD, Hypebeast &amp; more</p>
     </div>
     <div class="news-filter-row">
       <button class="filter-btn active" data-tag="">All</button>
@@ -278,26 +220,58 @@
   <section class="section" id="brands">
     <div class="section-header">
       <h2 class="section-title">Brand Pulse</h2>
-      <p class="section-sub">Brand mention frequency across news & social data</p>
+      <p class="section-sub">Brand mention frequency across news &amp; social data</p>
     </div>
     <div class="charts-row">
-      <div class="chart-card wide">
-        <h3 class="chart-title">Brand Mention Leaderboard</h3>
-        <canvas id="brandLeaderboardChart"></canvas>
-      </div>
-      <div class="chart-card">
-        <h3 class="chart-title">Luxury vs Fast Fashion</h3>
-        <canvas id="brandSegmentChart"></canvas>
-      </div>
+      <div class="chart-card wide"><h3 class="chart-title">Brand Mention Leaderboard</h3><canvas id="brandLeaderboardChart"></canvas></div>
+      <div class="chart-card"><h3 class="chart-title">Luxury vs Fast Fashion vs Streetwear</h3><canvas id="brandSegmentChart"></canvas></div>
     </div>
     <div class="brand-grid" id="brandGrid"></div>
+  </section>
+
+  <!-- ── DB SEARCH ── -->
+  <section class="section" id="search">
+    <div class="section-header">
+      <h2 class="section-title">Database Search &amp; AI Analysis</h2>
+      <p class="section-sub">Search our collected news and Reddit data — the AI reads the results and generates a forecast</p>
+    </div>
+    <div class="search-input-row">
+      <input type="text" id="dbSearchInput" class="search-input" placeholder="Search for any fashion topic, trend, brand, or aesthetic…" />
+      <button class="search-btn" id="dbSearchBtn">Search + Analyse →</button>
+    </div>
+    <div class="ai-result-card" id="searchAICard" style="margin-bottom:16px">
+      <div class="ai-chip">✦ AI ANALYSIS</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <h4 id="searchQueryLabel" style="font-family:var(--font-serif);font-size:18px;color:var(--text-1)">—</h4>
+        <span class="trend-cat" id="searchModelUsed" style="margin-left:auto"></span>
+      </div>
+      <p id="searchResultAnalysis" style="font-size:14px;line-height:1.8;color:var(--text-1);font-style:italic">
+        Enter a search query above to get an AI-powered analysis grounded in our database.
+      </p>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <h3 class="chart-title">📰 Matching News Articles</h3>
+        <div id="searchResultNews" class="query-list"></div>
+      </div>
+      <div class="chart-card">
+        <h3 class="chart-title">💬 Matching Reddit Posts</h3>
+        <div id="searchResultReddit" class="query-list"></div>
+      </div>
+    </div>
+    <div class="db-ingest-banner mt-md">
+      <div class="ingest-info">
+        The search uses our <strong>local SQLite database</strong>. Click <strong>Ingest Data</strong> to populate it with the latest news and Reddit posts. The more data ingested, the richer the search results and AI context.
+      </div>
+      <button class="search-btn" data-action="ingest">⬇ Ingest Data</button>
+    </div>
   </section>
 
   <!-- ── FASHION CALENDAR ── -->
   <section class="section" id="calendar">
     <div class="section-header">
       <h2 class="section-title">Fashion Calendar</h2>
-      <p class="section-sub">Key runway events, shows & industry dates</p>
+      <p class="section-sub">Key runway events, shows &amp; industry dates</p>
     </div>
     <div class="calendar-grid" id="calendarGrid"></div>
   </section>
@@ -306,10 +280,11 @@
   <section class="section" id="ai">
     <div class="section-header">
       <h2 class="section-title">AI Fashion Analyst</h2>
-      <p class="section-sub">Powered by LLM analysis (Groq / OpenAI) with intelligent fallback</p>
+      <p class="section-sub">Powered by Groq → OpenAI → Ollama (local) → rule-based fallback</p>
     </div>
+    <div class="ai-model-status" id="aiModelIndicator">Checking AI models…</div>
 
-    <div class="ai-overview-card" id="aiOverviewCard">
+    <div class="ai-overview-card">
       <div class="ai-chip">✦ TREND OVERVIEW</div>
       <p id="aiOverviewMain">Loading…</p>
     </div>
@@ -321,13 +296,13 @@
         <p id="aiSeasonText">Loading…</p>
       </div>
       <div class="ai-card">
-        <div class="ai-chip">NEWS ANALYSIS</div>
-        <h4 class="ai-card-title">Industry Signals</h4>
+        <div class="ai-chip">NEWS SIGNALS</div>
+        <h4 class="ai-card-title">Industry Direction</h4>
         <p id="aiNewsText">Loading…</p>
       </div>
     </div>
 
-    <h3 class="subsection-title">Per-Trend Insights</h3>
+    <h3 class="subsection-title">Per-Trend Deep Dive</h3>
     <div class="ai-trend-selector">
       <label>Select trend:</label>
       <select id="aiTrendSelect" class="ai-select"></select>
@@ -335,7 +310,10 @@
     </div>
     <div class="ai-result-card" id="aiTrendResult">
       <div class="ai-chip">TREND ANALYSIS</div>
-      <h4 id="aiTrendName">—</h4>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <h4 id="aiTrendName" style="font-family:var(--font-serif);font-size:20px;color:var(--text-1)">—</h4>
+        <span class="trend-cat" id="aiTrendModel" style="margin-left:auto;font-size:10px"></span>
+      </div>
       <p id="aiTrendText">Select a trend above and click Analyse.</p>
       <div class="ai-tip" id="aiStyleTip"></div>
     </div>
@@ -344,5 +322,18 @@
 </main>
 
 <script src="/static/js/app.js"></script>
+
+<!-- Search section wiring (must come after app.js) -->
+<script>
+document.getElementById('dbSearchBtn')?.addEventListener('click', () => {
+  const q = document.getElementById('dbSearchInput').value.trim();
+  if (!q) return;
+  document.getElementById('searchQueryLabel').textContent = '"' + q + '"';
+  runSearch(q);
+});
+document.getElementById('dbSearchInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('dbSearchBtn').click();
+});
+</script>
 </body>
 </html>

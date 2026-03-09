@@ -1,16 +1,37 @@
 import os
+import warnings
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'fashion-trend-forecasting-2024')
-    DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+    _default_secret = 'fashion-trend-forecasting-dev-key-change-me'
+    _secret_key = os.environ.get('SECRET_KEY', '')
 
-    # Optional AI API keys
-    GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
+    if not _secret_key:
+        if os.environ.get('FLASK_ENV', 'development') == 'production':
+            raise RuntimeError(
+                'SECRET_KEY environment variable must be set in production. '
+                'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
+            )
+        warnings.warn(
+            'SECRET_KEY is not set. Using an insecure default — set SECRET_KEY before deploying.',
+            UserWarning,
+            stacklevel=1,
+        )
+        _secret_key = _default_secret
+
+    SECRET_KEY  = _secret_key
+    DEBUG       = os.environ.get('DEBUG', 'False').lower() == 'true'
+
+    # AI API keys — all optional; falls back to Ollama then rule-based
+    GROQ_API_KEY   = os.environ.get('GROQ_API_KEY', '')
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+
+    # Ollama local model config
+    OLLAMA_HOST  = os.environ.get('OLLAMA_HOST', 'http://localhost:11434')
+    OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'llama3')
 
     # Cache TTL in seconds
     CACHE_TTL = int(os.environ.get('CACHE_TTL', '300'))

@@ -1012,3 +1012,65 @@ canvas {
   .kpi-grid   { grid-template-columns: repeat(2, 1fr); }
   .section    { padding: 20px 16px 40px; }
 }
+
+/* ── DB INGEST BANNER ───────────────────────────────────────── */
+.db-ingest-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(74,111,165,.1);
+  border: 1px solid rgba(74,111,165,.25);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  flex-wrap: wrap;
+}
+
+.ingest-info {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.ingest-info strong { color: var(--text-1); }
+
+/* ── INGEST SIDEBAR BUTTON ──────────────────────────────────── */
+.ingest-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 14px;
+  background: rgba(212,165,116,.15);
+  border: 1px solid rgba(212,165,116,.3);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s;
+  text-align: center;
+}
+.ingest-btn:hover { background: rgba(212,165,116,.25); }
+.ingest-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── AI MODEL STATUS ────────────────────────────────────────── */
+.ai-model-status {
+  display: inline-block;
+  font-size: 11px;
+  padding: 5px 14px;
+  background: rgba(76,175,80,.1);
+  border: 1px solid rgba(76,175,80,.25);
+  color: #4caf50;
+  border-radius: 20px;
+  margin-bottom: 20px;
+  letter-spacing: .5px;
+}
+
+/* ── EMPTY STATE ────────────────────────────────────────────── */
+.empty-state {
+  font-size: 14px;
+  color: var(--text-2);
+  padding: 24px;
+  text-align: center;
+  line-height: 1.7;
+}
+.empty-state strong { color: var(--accent); }
