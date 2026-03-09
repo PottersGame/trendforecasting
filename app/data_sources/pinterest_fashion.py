@@ -1,38 +1,47 @@
 """
-Pinterest fashion data source.
+Pinterest fashion data source — web scraping.
 
-Uses the Pinterest API v5 when an access token is available
-(PINTEREST_ACCESS_TOKEN environment variable).
-Falls back to public Pinterest board RSS feeds when no credentials are set.
+Collects fashion pin data from Pinterest without any API credentials by:
 
-To enable live API data, create a Pinterest app at
-https://developers.pinterest.com/ and set:
-    PINTEREST_ACCESS_TOKEN=your_access_token
+  1. Scraping public RSS feeds of curated fashion brand / publisher Pinterest
+     boards (Vogue, Elle, Refinery29, Harper's Bazaar, Who What Wear, etc.).
+  2. Querying Pinterest's public JSON search endpoint for fashion-related
+     keywords — no authentication required.
 
-Without credentials the module still returns pin data by parsing the public
-RSS feeds of curated fashion brand / publisher Pinterest boards.
+Both methods are attempted on every call; results are merged and cached.
 """
 
-import os
+import json
 import re
 import xml.etree.ElementTree as ET
 import requests
 from typing import Any, Dict, List
+from urllib.parse import quote
 
 from app.utils import cache
 
-# ── Pinterest API v5 ──────────────────────────────────────────────────────────
-
-_PINTEREST_API_BASE = 'https://api.pinterest.com/v5'
-
-_HEADERS = {
-    'User-Agent': 'FashionTrendForecasting/1.0 (educational research)',
-    'Accept':     'application/json',
-}
+# ── Request headers ───────────────────────────────────────────────────────────
 
 _RSS_HEADERS = {
-    'User-Agent': 'FashionTrendForecasting/1.0 (educational research)',
-    'Accept':     'application/rss+xml, application/xml, text/xml, */*',
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/121.0.0.0 Safari/537.36'
+    ),
+    'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+}
+
+_JSON_HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/121.0.0.0 Safari/537.36'
+    ),
+    'Accept': 'application/json, text/javascript, */*; q=0.01',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'X-Requested-With': 'XMLHttpRequest',
+    'Referer': 'https://www.pinterest.com/',
 }
 
 # ── Curated public Pinterest board RSS feeds ──────────────────────────────────
@@ -51,7 +60,7 @@ PINTEREST_BOARDS: List[tuple] = [
     ('forever21',       'Forever 21',        ['style', 'streetwear'],  'https://www.pinterest.com/forever21/feed.rss'),
 ]
 
-# Fashion terms used when searching via the Pinterest API
+# Fashion search queries used for the public JSON search scraper
 FASHION_SEARCH_TERMS: List[str] = [
     'quiet luxury outfit',
     'y2k fashion',
@@ -70,13 +79,16 @@ FASHION_SEARCH_TERMS: List[str] = [
 _STRIP_TAGS = re.compile(r'<[^>]+>')
 _WHITESPACE  = re.compile(r'\s+')
 
+# Pinterest public search JSON endpoint
+_PINTEREST_SEARCH_URL = 'https://www.pinterest.com/resource/BaseSearchResource/get/'
+
 
 def _clean(text: str) -> str:
     text = _STRIP_TAGS.sub(' ', text or '')
     return _WHITESPACE.sub(' ', text).strip()
 
 
-# ── RSS fallback ──────────────────────────────────────────────────────────────
+# ── RSS board scraper ─────────────────────────────────────────────────────────
 
 def _parse_board_rss(
     slug: str,
@@ -125,46 +137,71 @@ def _parse_board_rss(
     return pins
 
 
-# ── Pinterest API v5 ──────────────────────────────────────────────────────────
+def _scrape_all_boards() -> List[Dict[str, Any]]:
+    """Fetch RSS feeds from every board in PINTEREST_BOARDS."""
+    all_pins: List[Dict[str, Any]] = []
+    for slug, display, tags, url in PINTEREST_BOARDS:
+        all_pins.extend(_parse_board_rss(slug, display, tags, url))
+    return all_pins
 
-def _search_pins_api(
-    query: str,
-    access_token: str,
-    limit: int = 25,
-) -> List[Dict[str, Any]]:
-    """Search Pinterest for pins using the v5 API."""
+
+# ── Pinterest public JSON search scraper ─────────────────────────────────────
+
+def _search_pins_public(query: str, limit: int = 25) -> List[Dict[str, Any]]:
+    """
+    Scrape Pinterest's public search JSON endpoint for a fashion query.
+    No authentication required — Pinterest returns public pin data as JSON
+    when the ``X-Requested-With`` header is present.
+    """
     try:
+        data_param = json.dumps({
+            'options': {
+                'query':     query,
+                'scope':     'pins',
+                'bookmarks': [],
+            },
+            'context': {},
+        })
         resp = requests.get(
-            f'{_PINTEREST_API_BASE}/pins/',
-            headers={**_HEADERS, 'Authorization': f'Bearer {access_token}'},
-            params={'query': query, 'page_size': limit},
+            _PINTEREST_SEARCH_URL,
+            headers=_JSON_HEADERS,
+            params={
+                'source_url': f'/search/pins/?q={quote(query)}&rs=typed',
+                'data':       data_param,
+            },
             timeout=10,
         )
         if resp.status_code != 200:
             return []
+
+        resource_response = resp.json().get('resource_response', {})
+        results = resource_response.get('data', {}).get('results', [])
+
         pins: List[Dict[str, Any]] = []
-        for pin in resp.json().get('items', []):
-            media  = pin.get('media') or {}
-            images = media.get('images') or {}
-            img = ''
-            if images:
+        for pin in results[:limit]:
+            # Title comes from 'title' or 'description' field
+            desc  = pin.get('description') or pin.get('title') or ''
+            img   = ''
+            imgs  = pin.get('images', {})
+            if imgs:
                 img_obj = (
-                    images.get('1200x')
-                    or images.get('600x')
-                    or next(iter(images.values()), {})
+                    imgs.get('736x')
+                    or imgs.get('474x')
+                    or next(iter(imgs.values()), {})
                 )
                 img = img_obj.get('url', '') if isinstance(img_obj, dict) else ''
-            desc = pin.get('description') or pin.get('title') or ''
+            pin_id = pin.get('id', '')
+            saves  = pin.get('save_count', 0) or 0
             pins.append({
                 'title':       desc[:280],
-                'url':         f"https://www.pinterest.com/pin/{pin.get('id', '')}",
+                'url':         f'https://www.pinterest.com/pin/{pin_id}/' if pin_id else '',
                 'description': desc[:300],
                 'published':   pin.get('created_at', ''),
                 'image':       img,
-                'board':       query,
+                'board':       query.replace(' ', '_'),
                 'source_name': 'Pinterest Search',
                 'tags':        ['fashion'],
-                'saves':       pin.get('save_count', 0),
+                'saves':       int(saves),
                 'source':      'Pinterest',
             })
         return pins
@@ -172,34 +209,48 @@ def _search_pins_api(
         return []
 
 
+def _scrape_search_results() -> List[Dict[str, Any]]:
+    """Run the public JSON search scraper for all curated fashion terms."""
+    all_pins: List[Dict[str, Any]] = []
+    for query in FASHION_SEARCH_TERMS:
+        all_pins.extend(_search_pins_public(query, limit=10))
+    return all_pins
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def get_pinterest_fashion_pins(limit: int = 60) -> List[Dict[str, Any]]:
     """
-    Return fashion-related Pinterest pins.
+    Return fashion-related Pinterest pins using web scraping.
 
-    When PINTEREST_ACCESS_TOKEN is set the Pinterest API v5 is queried for
-    pins matching curated fashion search terms.
-    Otherwise the module parses the public RSS feeds of curated fashion brand
-    and publisher boards.
+    Scraping strategy (both run on every call; results are merged):
+      1. Public board RSS feeds — parses the public RSS of 10 curated fashion
+         brand / publisher boards (Vogue, Elle, Refinery29, etc.).
+      2. Public JSON search API — queries Pinterest's search endpoint for 12
+         curated fashion terms without any authentication.
+
+    Results are merged, deduplicated by URL, and cached for 10 minutes.
     """
     cache_key = f'pinterest_fashion_{limit}'
     hit = cache.get(cache_key)
     if hit is not None:
         return hit
 
-    access_token = os.environ.get('PINTEREST_ACCESS_TOKEN', '')
     all_pins: List[Dict[str, Any]] = []
 
-    if access_token:
-        for query in FASHION_SEARCH_TERMS[:6]:
-            all_pins.extend(_search_pins_api(query, access_token, limit=10))
+    # Both scrapers run in parallel-friendly order; merge and dedup by URL
+    all_pins.extend(_scrape_all_boards())
+    all_pins.extend(_scrape_search_results())
 
-    if not all_pins:
-        for slug, display, tags, url in PINTEREST_BOARDS:
-            all_pins.extend(_parse_board_rss(slug, display, tags, url))
+    seen_urls = set()
+    unique_pins: List[Dict[str, Any]] = []
+    for p in all_pins:
+        url = p.get('url', '')
+        if url and url not in seen_urls:
+            seen_urls.add(url)
+            unique_pins.append(p)
 
-    result = all_pins[:limit]
+    result = unique_pins[:limit]
     cache.set(cache_key, result, ttl=600)
     return result
 
@@ -253,3 +304,4 @@ def get_pinterest_board_activity() -> List[Dict[str, Any]]:
     result = sorted(stats.values(), key=lambda x: x['pin_count'], reverse=True)
     cache.set(cache_key, result, ttl=600)
     return result
+

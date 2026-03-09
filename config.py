@@ -29,15 +29,6 @@ class Config:
     GROQ_API_KEY   = os.environ.get('GROQ_API_KEY', '')
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 
-    # TikTok Research API credentials — optional; enables live hashtag data
-    # Apply at https://developers.tiktok.com/products/research-api/
-    TIKTOK_CLIENT_KEY    = os.environ.get('TIKTOK_CLIENT_KEY', '')
-    TIKTOK_CLIENT_SECRET = os.environ.get('TIKTOK_CLIENT_SECRET', '')
-
-    # Pinterest API v5 access token — optional; enables pin search
-    # Create an app at https://developers.pinterest.com/
-    PINTEREST_ACCESS_TOKEN = os.environ.get('PINTEREST_ACCESS_TOKEN', '')
-
     # Ollama local model config
     OLLAMA_HOST  = os.environ.get('OLLAMA_HOST', 'http://localhost:11434')
     OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'llama3')
