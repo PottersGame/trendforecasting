@@ -1074,3 +1074,100 @@ canvas {
   line-height: 1.7;
 }
 .empty-state strong { color: var(--accent); }
+
+/* ── API KEY MODAL ──────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.hidden { display: none; }
+.modal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px 36px;
+  width: min(480px, 90vw);
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 12px;
+}
+.modal-msg {
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.65;
+  margin-bottom: 18px;
+}
+.modal-msg code {
+  background: rgba(255,255,255,.07);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 13px;
+  color: var(--accent);
+}
+.modal-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-1);
+  font-size: 14px;
+  padding: 10px 14px;
+  outline: none;
+  margin-bottom: 18px;
+  transition: border-color .2s;
+}
+.modal-input:focus { border-color: var(--accent); }
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.modal-btn-primary {
+  flex: 1;
+  padding: 10px;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .2s;
+}
+.modal-btn-primary:hover { opacity: .85; }
+.modal-btn-cancel {
+  flex: 1;
+  padding: 10px;
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color .2s;
+}
+.modal-btn-cancel:hover { border-color: var(--accent); }
+.modal-hint {
+  font-size: 12px;
+  color: var(--text-2);
+  opacity: .7;
+  line-height: 1.5;
+}
+.modal-hint code {
+  background: rgba(255,255,255,.07);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 11px;
+}

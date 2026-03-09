@@ -51,6 +51,7 @@
       <span class="live-dot"></span>
       <span class="live-label">Live Data</span>
       <button class="refresh-btn" id="refreshBtn" title="Refresh all data">↻ Refresh</button>
+      <button class="refresh-btn" id="apiKeyBtn" title="Set API key for AI endpoints">🔑 API Key</button>
     </div>
   </header>
 
@@ -335,5 +336,30 @@ document.getElementById('dbSearchInput')?.addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('dbSearchBtn').click();
 });
 </script>
+
+<!-- ── API KEY MODAL ──────────────────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="apiKeyModal">
+  <div class="modal-card">
+    <div class="modal-title">🔑 API Key</div>
+    <p class="modal-msg" id="apiKeyMessage">
+      Enter your <code>APP_API_KEY</code> to access AI analysis and data-ingestion
+      endpoints. You only need to do this once — the key is stored in your browser.
+    </p>
+    <input
+      id="apiKeyInput"
+      class="modal-input"
+      type="password"
+      placeholder="Paste your APP_API_KEY here…"
+      autocomplete="off"
+    />
+    <div class="modal-actions">
+      <button class="modal-btn-primary" id="apiKeySaveBtn">Save Key</button>
+      <button class="modal-btn-cancel"  id="apiKeyCancelBtn">Cancel</button>
+    </div>
+    <p class="modal-hint">
+      No key? Leave blank if the server has <code>APP_API_KEY</code> unset (open dev mode).
+    </p>
+  </div>
+</div>
 </body>
 </html>
