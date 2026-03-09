@@ -121,8 +121,10 @@ CREATE TABLE IF NOT EXISTS forecasts (
 CREATE TABLE IF NOT EXISTS api_users (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     email           TEXT    UNIQUE NOT NULL,
+    password_hash   TEXT,                     -- bcrypt/werkzeug hash; NULL for legacy keys
     api_key         TEXT    UNIQUE NOT NULL,
     plan            TEXT    DEFAULT 'free',   -- 'free' | 'pro' | 'enterprise'
+    is_admin        INTEGER DEFAULT 0,        -- 1 = admin, 0 = regular user
     requests_today  INTEGER DEFAULT 0,
     daily_limit     INTEGER DEFAULT 100,      -- requests per day (free=100, pro=5000)
     last_reset      TEXT    DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
@@ -167,6 +169,17 @@ def init_db() -> None:
     """Create all tables and indexes if they don't exist."""
     with _lock, _conn() as con:
         con.executescript(_SCHEMA)
+    _migrate_db()
+
+
+def _migrate_db() -> None:
+    """Apply incremental schema migrations for existing databases."""
+    with _lock, _conn() as con:
+        cols = {row[1] for row in con.execute('PRAGMA table_info(api_users)').fetchall()}
+        if 'password_hash' not in cols:
+            con.execute('ALTER TABLE api_users ADD COLUMN password_hash TEXT')
+        if 'is_admin' not in cols:
+            con.execute('ALTER TABLE api_users ADD COLUMN is_admin INTEGER DEFAULT 0')
 
 
 # ── Writers ──────────────────────────────────────────────────────────────────
@@ -521,17 +534,29 @@ _PLAN_DAILY_LIMITS: Dict[str, int] = {
 }
 
 
-def create_api_user(email: str, api_key: str, plan: str = 'free') -> Optional[Dict[str, Any]]:
+def create_api_user(
+    email: str,
+    api_key: str,
+    plan: str = 'free',
+    password_hash: Optional[str] = None,
+    is_admin: bool = False,
+) -> Optional[Dict[str, Any]]:
     """Register a new API user. Returns user dict or None on duplicate email."""
     daily_limit = _PLAN_DAILY_LIMITS.get(plan, _PLAN_DAILY_LIMITS['free'])
     sql = """
-        INSERT INTO api_users (email, api_key, plan, daily_limit)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO api_users (email, api_key, plan, daily_limit, password_hash, is_admin)
+        VALUES (?, ?, ?, ?, ?, ?)
     """
     try:
         with _lock, _conn() as con:
-            con.execute(sql, (email.lower().strip(), api_key, plan, daily_limit))
-        return {'email': email, 'api_key': api_key, 'plan': plan, 'daily_limit': daily_limit}
+            con.execute(sql, (
+                email.lower().strip(), api_key, plan, daily_limit,
+                password_hash, 1 if is_admin else 0,
+            ))
+        return {
+            'email': email, 'api_key': api_key, 'plan': plan,
+            'daily_limit': daily_limit, 'is_admin': is_admin,
+        }
     except sqlite3.IntegrityError:
         return None
 
@@ -606,6 +631,71 @@ def get_api_users_stats() -> Dict[str, Any]:
         'total_users': total,
         'by_plan': {r['plan']: r['cnt'] for r in by_plan},
     }
+
+
+def list_all_users(limit: int = 200) -> List[Dict[str, Any]]:
+    """Return all users for the admin console (excludes password_hash)."""
+    sql = """
+        SELECT id, email, plan, is_admin, requests_today, daily_limit,
+               created_at, last_used, api_key
+        FROM   api_users
+        ORDER  BY created_at DESC
+        LIMIT  ?
+    """
+    with _conn() as con:
+        rows = con.execute(sql, (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_user_plan(user_id: int, plan: str) -> bool:
+    """Change a user's plan and update their daily limit. Returns True on success."""
+    daily_limit = _PLAN_DAILY_LIMITS.get(plan, _PLAN_DAILY_LIMITS['free'])
+    with _lock, _conn() as con:
+        cur = con.execute(
+            'UPDATE api_users SET plan=?, daily_limit=? WHERE id=?',
+            (plan, daily_limit, user_id),
+        )
+    return cur.rowcount > 0
+
+
+def set_user_admin(user_id: int, is_admin: bool) -> bool:
+    """Grant or revoke admin privileges. Returns True on success."""
+    with _lock, _conn() as con:
+        cur = con.execute(
+            'UPDATE api_users SET is_admin=? WHERE id=?',
+            (1 if is_admin else 0, user_id),
+        )
+    return cur.rowcount > 0
+
+
+def delete_user(user_id: int) -> bool:
+    """Delete a user by ID. Returns True if a row was deleted."""
+    with _lock, _conn() as con:
+        cur = con.execute('DELETE FROM api_users WHERE id=?', (user_id,))
+    return cur.rowcount > 0
+
+
+def set_user_password(email: str, password_hash: str) -> bool:
+    """Update a user's password hash. Returns True on success."""
+    with _lock, _conn() as con:
+        cur = con.execute(
+            'UPDATE api_users SET password_hash=? WHERE email=?',
+            (password_hash, email.lower().strip()),
+        )
+    return cur.rowcount > 0
+
+
+def regenerate_api_key(email: str, new_key: str) -> bool:
+    """Replace a user's API key. Returns True on success."""
+    with _lock, _conn() as con:
+        try:
+            cur = con.execute(
+                'UPDATE api_users SET api_key=? WHERE email=?',
+                (new_key, email.lower().strip()),
+            )
+            return cur.rowcount > 0
+        except sqlite3.IntegrityError:
+            return False
 
 
 # Initialise DB on import

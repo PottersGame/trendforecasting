@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Console — RUNWAY AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/landing.css" />
+  <style>
+    .admin-page {
+      min-height: 100vh;
+      padding: 80px 24px 60px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .admin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 36px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .admin-header h1 {
+      font-family: var(--font-serif);
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--text-1);
+    }
+    .admin-header .admin-meta {
+      font-size: 13px;
+      color: var(--text-2);
+    }
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(168,85,247,.15);
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-card .num {
+      font-family: var(--font-serif);
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .stat-card .lbl {
+      font-size: 11px;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+    .section-title {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-1);
+      margin-bottom: 16px;
+    }
+    .users-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      background: var(--bg-card);
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(168,85,247,.1);
+    }
+    .users-table th {
+      background: rgba(168,85,247,.08);
+      color: var(--text-2);
+      font-weight: 600;
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    .users-table td {
+      padding: 11px 14px;
+      color: var(--text-1);
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .users-table tr:last-child td { border-bottom: none; }
+    .users-table tr:hover td { background: rgba(168,85,247,.04); }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-free    { background: rgba(34,211,238,.1);  color: var(--cyan);  border: 1px solid rgba(34,211,238,.2); }
+    .badge-pro     { background: rgba(168,85,247,.12); color: var(--accent); border: 1px solid rgba(168,85,247,.2); }
+    .badge-ent     { background: rgba(245,158,11,.1);  color: #f59e0b; border: 1px solid rgba(245,158,11,.2); }
+    .badge-admin   { background: rgba(236,72,153,.1);  color: var(--pink);  border: 1px solid rgba(236,72,153,.2); }
+    .key-mono {
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--text-3);
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+    }
+    .action-form { display: inline; }
+    .action-btn {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid;
+      font-family: var(--font-sans);
+      transition: opacity .2s;
+    }
+    .action-btn:hover { opacity: .75; }
+    .btn-plan   { background: rgba(34,211,238,.08); color: var(--cyan);  border-color: rgba(34,211,238,.2); }
+    .btn-admin  { background: rgba(168,85,247,.08); color: var(--accent); border-color: rgba(168,85,247,.2); }
+    .btn-delete { background: rgba(236,72,153,.08); color: var(--pink);  border-color: rgba(236,72,153,.2); }
+    .plan-select {
+      padding: 3px 6px;
+      background: var(--bg);
+      border: 1px solid var(--border-2);
+      border-radius: 6px;
+      color: var(--text-1);
+      font-size: 12px;
+      font-family: var(--font-sans);
+      margin-right: 4px;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-2);
+      font-size: 14px;
+    }
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+    .alert-info { background: rgba(34,211,238,.08); color: var(--cyan); border: 1px solid rgba(34,211,238,.15); }
+    @media (max-width: 700px) {
+      .users-table { font-size: 12px; }
+      .users-table th, .users-table td { padding: 8px 10px; }
+      .key-mono { max-width: 80px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">
+      <span class="logo-gem">✦</span>
+      <span class="logo-name">RUNWAY AI</span>
+    </a>
+    <div class="nav-links">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/account">Account</a>
+      <a href="/logout">Logout</a>
+    </div>
+  </div>
+</nav>
+
+<div class="admin-page">
+  <div class="admin-header">
+    <div>
+      <div class="section-label">ADMIN</div>
+      <h1>User Console</h1>
+    </div>
+    <span class="admin-meta">Manage accounts, plans, and API keys</span>
+  </div>
+
+  <!-- ── STATS ── -->
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="num">{{ stats.total_users }}</div>
+      <div class="lbl">Total Users</div>
+    </div>
+    {% for plan, count in stats.by_plan.items() %}
+    <div class="stat-card">
+      <div class="num">{{ count }}</div>
+      <div class="lbl">{{ plan | capitalize }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── USERS TABLE ── -->
+  <div class="section-title">Registered Users</div>
+
+  {% if users %}
+  <div style="overflow-x:auto">
+    <table class="users-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Email</th>
+          <th>Plan</th>
+          <th>Role</th>
+          <th>API Key</th>
+          <th>Used Today</th>
+          <th>Limit</th>
+          <th>Joined</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>{{ u.id }}</td>
+          <td>{{ u.email }}</td>
+          <td>
+            <span class="badge {% if u.plan == 'pro' %}badge-pro{% elif u.plan == 'enterprise' %}badge-ent{% else %}badge-free{% endif %}">
+              {{ u.plan }}
+            </span>
+          </td>
+          <td>
+            {% if u.is_admin %}
+            <span class="badge badge-admin">admin</span>
+            {% else %}
+            <span style="color:var(--text-3);font-size:12px">user</span>
+            {% endif %}
+          </td>
+          <td><span class="key-mono" title="{{ u.api_key }}">{{ u.api_key }}</span></td>
+          <td>{{ u.requests_today }}</td>
+          <td>{{ u.daily_limit if u.daily_limit else '∞' }}</td>
+          <td style="font-size:11px;color:var(--text-3)">{{ u.created_at[:10] if u.created_at else '—' }}</td>
+          <td>
+            <!-- Change plan -->
+            <form class="action-form" method="POST" action="/admin/update-plan">
+              <input type="hidden" name="user_id" value="{{ u.id }}" />
+              <select name="plan" class="plan-select">
+                <option value="free" {% if u.plan == 'free' %}selected{% endif %}>free</option>
+                <option value="pro" {% if u.plan == 'pro' %}selected{% endif %}>pro</option>
+                <option value="enterprise" {% if u.plan == 'enterprise' %}selected{% endif %}>enterprise</option>
+              </select>
+              <button type="submit" class="action-btn btn-plan">Save</button>
+            </form>
+            <!-- Toggle admin -->
+            <form class="action-form" method="POST" action="/admin/set-admin" style="margin-left:4px">
+              <input type="hidden" name="user_id" value="{{ u.id }}" />
+              <input type="hidden" name="is_admin" value="{{ '0' if u.is_admin else '1' }}" />
+              <button type="submit" class="action-btn btn-admin">
+                {{ 'Revoke Admin' if u.is_admin else 'Make Admin' }}
+              </button>
+            </form>
+            <!-- Delete -->
+            <form class="action-form" method="POST" action="/admin/delete-user" style="margin-left:4px"
+                  onsubmit="return confirm('Delete user ' + {{ u.email | tojson }} + '? This cannot be undone.')">
+              <input type="hidden" name="user_id" value="{{ u.id }}" />
+              <button type="submit" class="action-btn btn-delete">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">No registered users yet.</div>
+  {% endif %}
+</div>
+
+</body>
+</html>
