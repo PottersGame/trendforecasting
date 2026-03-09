@@ -20,6 +20,18 @@ GET  /api/calendar           Fashion event calendar
 GET  /api/wikipedia          Trending Wikipedia fashion articles
 GET  /api/keywords           Merged keyword frequency
 
+TikTok
+──────
+GET  /api/tiktok             Fashion TikTok posts / hashtag signals
+GET  /api/tiktok/keywords    Trending keywords from TikTok
+GET  /api/tiktok/hashtags    Per-category TikTok hashtag summary
+
+Pinterest
+─────────
+GET  /api/pinterest          Fashion Pinterest pins
+GET  /api/pinterest/keywords Trending keywords from Pinterest
+GET  /api/pinterest/boards   Per-board Pinterest activity
+
 Search (RAG)
 ────────────
 GET  /api/search?q=<query>   Search DB + AI analysis
@@ -68,6 +80,14 @@ from app.data_sources.google_trends_fashion import (
 from app.data_sources.wikipedia_fashion  import (
     get_top_fashion_articles, get_fashion_designer_articles,
 )
+from app.data_sources.tiktok_fashion     import (
+    get_tiktok_fashion_posts, get_tiktok_trending_keywords,
+    get_tiktok_hashtag_summary,
+)
+from app.data_sources.pinterest_fashion  import (
+    get_pinterest_fashion_pins, get_pinterest_trending_keywords,
+    get_pinterest_board_activity,
+)
 from app.models import (
     score_trends, score_brands, get_color_trends,
     get_current_season, get_fashion_calendar,
@@ -96,6 +116,12 @@ def _build_text_pool() -> list:
         pool.append(a.get('description', ''))
     for p in get_all_fashion_posts(limit_per_sub=20):
         pool.append(p.get('title', ''))
+    for p in get_tiktok_fashion_posts(limit=50):
+        pool.append(p.get('title', ''))
+        pool += p.get('keywords', [])
+    for p in get_pinterest_fashion_pins(limit=60):
+        pool.append(p.get('title', ''))
+        pool.append(p.get('description', ''))
     return pool
 
 
@@ -120,11 +146,19 @@ def _ingest_all() -> dict:
     kw_news = extract_trending_keywords(news, top_n=40)
     kw_reddit = reddit_keywords(limit=40)
 
-    # Merge keywords
+    # TikTok and Pinterest keyword signals
+    kw_tiktok    = get_tiktok_trending_keywords(limit=30)
+    kw_pinterest = get_pinterest_trending_keywords(limit=30)
+
+    # Merge keywords from all sources
     merged: dict = {}
     for kw in kw_news:
         merged[kw['word']] = merged.get(kw['word'], 0) + kw['count'] * 2
     for kw in kw_reddit:
+        merged[kw['word']] = merged.get(kw['word'], 0) + kw['count']
+    for kw in kw_tiktok:
+        merged[kw['word']] = merged.get(kw['word'], 0) + kw['count']
+    for kw in kw_pinterest:
         merged[kw['word']] = merged.get(kw['word'], 0) + kw['count']
     kw_merged = [{'word': w, 'count': c} for w, c in
                  sorted(merged.items(), key=lambda x: x[1], reverse=True)[:50]]
@@ -155,9 +189,9 @@ def _ingest_all() -> dict:
         pass
 
     return {
-        'new_news':    n_news,
-        'new_reddit':  n_reddit,
-        'trends_saved': len(trends),
+        'new_news':       n_news,
+        'new_reddit':     n_reddit,
+        'trends_saved':   len(trends),
         'keywords_saved': len(kw_merged),
     }
 
@@ -331,16 +365,66 @@ def wikipedia():
 
 @api_bp.route('/keywords')
 def keywords():
-    news_data  = get_fashion_news(limit=80)
-    kw_news    = extract_trending_keywords(news_data, top_n=30)
-    kw_reddit  = reddit_keywords(limit=30)
+    news_data    = get_fashion_news(limit=80)
+    kw_news      = extract_trending_keywords(news_data, top_n=30)
+    kw_reddit    = reddit_keywords(limit=30)
+    kw_tiktok    = get_tiktok_trending_keywords(limit=20)
+    kw_pinterest = get_pinterest_trending_keywords(limit=20)
     merged: dict = {}
     for kw in kw_news:
         merged[kw['word']] = merged.get(kw['word'], 0) + kw['count'] * 2
     for kw in kw_reddit:
         merged[kw['word']] = merged.get(kw['word'], 0) + kw['count']
+    for kw in kw_tiktok:
+        merged[kw['word']] = merged.get(kw['word'], 0) + kw['count']
+    for kw in kw_pinterest:
+        merged[kw['word']] = merged.get(kw['word'], 0) + kw['count']
     sorted_kw = sorted(merged.items(), key=lambda x: x[1], reverse=True)
     return jsonify([{'word': w, 'count': c} for w, c in sorted_kw[:40]])
+
+
+# ── TikTok ─────────────────────────────────────────────────────────────────────
+
+@api_bp.route('/tiktok')
+def tiktok():
+    """Fashion TikTok posts / hashtag trend signals."""
+    limit = min(int(request.args.get('limit', 50)), 100)
+    return jsonify(get_tiktok_fashion_posts(limit=limit))
+
+
+@api_bp.route('/tiktok/keywords')
+def tiktok_keywords():
+    """Trending keywords extracted from TikTok fashion posts."""
+    limit = min(int(request.args.get('limit', 30)), 60)
+    return jsonify(get_tiktok_trending_keywords(limit=limit))
+
+
+@api_bp.route('/tiktok/hashtags')
+def tiktok_hashtags():
+    """Per-category TikTok hashtag summary."""
+    return jsonify(get_tiktok_hashtag_summary())
+
+
+# ── Pinterest ──────────────────────────────────────────────────────────────────
+
+@api_bp.route('/pinterest')
+def pinterest():
+    """Fashion Pinterest pins."""
+    limit = min(int(request.args.get('limit', 60)), 120)
+    return jsonify(get_pinterest_fashion_pins(limit=limit))
+
+
+@api_bp.route('/pinterest/keywords')
+def pinterest_keywords():
+    """Trending keywords extracted from Pinterest fashion pins."""
+    limit = min(int(request.args.get('limit', 30)), 60)
+    return jsonify(get_pinterest_trending_keywords(limit=limit))
+
+
+@api_bp.route('/pinterest/boards')
+def pinterest_boards():
+    """Per-board Pinterest activity stats."""
+    return jsonify(get_pinterest_board_activity())
 
 
 # ── SEARCH (RAG) ───────────────────────────────────────────────────────────────
@@ -525,6 +609,8 @@ def sources():
         ('fashion_news', lambda: bool(get_fashion_news(limit=3))),
         ('reddit',       lambda: bool(get_all_fashion_posts(limit_per_sub=3))),
         ('wikipedia',    lambda: bool(get_top_fashion_articles())),
+        ('tiktok',       lambda: bool(get_tiktok_fashion_posts(limit=3))),
+        ('pinterest',    lambda: bool(get_pinterest_fashion_pins(limit=3))),
         ('database',     lambda: bool(db.get_db_stats())),
     ]
     for name, fn in checks:
