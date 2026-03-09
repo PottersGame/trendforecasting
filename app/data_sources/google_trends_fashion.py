@@ -5,16 +5,24 @@ Uses pytrends (unofficial Google Trends API wrapper) — free, no key required.
 Tracks viral fashion aesthetics, style terms, and seasonal searches.
 """
 
+import logging
 import time
 import random
 from typing import List, Dict, Any, Optional
 from app.utils import cache
 
+logger = logging.getLogger(__name__)
+
 try:
     from pytrends.request import TrendReq
+    from pytrends.exceptions import TooManyRequestsError, ResponseError
     _AVAILABLE = True
 except ImportError:
     _AVAILABLE = False
+    logger.warning(
+        "pytrends is not installed. Google Trends data will be unavailable. "
+        "Run: pip install pytrends>=4.9.2"
+    )
 
 # ── Fashion keyword groups tracked ────────────────────────────────────────────
 
@@ -52,12 +60,32 @@ ALL_FASHION_KEYWORDS: List[str] = [
 ]
 
 
+def _unavailable_reason() -> str:
+    """Human-readable reason why the Google Trends client is unavailable."""
+    if not _AVAILABLE:
+        return 'pytrends is not installed'
+    return 'Could not connect to Google Trends'
+
+
 def _client() -> Optional[object]:
+    """
+    Create a TrendReq client with retry / back-off settings.
+
+    Returns None (and logs a warning) if pytrends is not installed or if the
+    initial Google cookie request fails (e.g. network unavailable).
+    """
     if not _AVAILABLE:
         return None
     try:
-        return TrendReq(hl='en-US', tz=0, timeout=(10, 25))
-    except Exception:
+        return TrendReq(
+            hl='en-US',
+            tz=0,
+            timeout=(10, 25),
+            retries=3,
+            backoff_factor=2,
+        )
+    except Exception as exc:
+        logger.warning("Failed to initialise Google Trends client: %s", exc)
         return None
 
 
@@ -75,7 +103,8 @@ def get_interest_over_time(
 ) -> Dict[str, Any]:
     """
     Return {dates: [...], data: {keyword: [values]}} for up to 5 keywords.
-    Falls back to empty data when pytrends is unavailable or rate-limited.
+    Falls back to empty data (with an 'error' key) when pytrends is
+    unavailable or rate-limited.
     """
     kw_key = '_'.join(sorted(keywords[:5]))
     cache_key = f'gtrends_iot_{kw_key}_{timeframe}_{geo}'
@@ -87,6 +116,7 @@ def get_interest_over_time(
 
     pt = _client()
     if not pt:
+        result['error'] = _unavailable_reason()
         return result
 
     try:
@@ -99,8 +129,12 @@ def get_interest_over_time(
                 if kw in df.columns:
                     result['data'][kw] = [int(v) for v in df[kw].tolist()]
         cache.set(cache_key, result, ttl=1800)
-    except Exception:
-        pass
+    except TooManyRequestsError as exc:
+        logger.warning("Google Trends rate limit hit for %s: %s", keywords, exc)
+        result['error'] = 'Google Trends rate limit reached — please retry later'
+    except Exception as exc:
+        logger.error("Google Trends interest_over_time failed for %s: %s", keywords, exc)
+        result['error'] = str(exc)
 
     return result
 
@@ -115,6 +149,10 @@ def get_trending_fashion_searches() -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
     pt = _client()
     if not pt:
+        logger.warning(
+            "Google Trends client unavailable (%s) — skipping trending searches",
+            _unavailable_reason(),
+        )
         return results
 
     try:
@@ -133,8 +171,10 @@ def get_trending_fashion_searches() -> List[Dict[str, Any]]:
                 if any(ft in term for ft in fashion_terms):
                     results.append({'query': term, 'rank': i + 1, 'source': 'Google Trends'})
             cache.set(cache_key, results[:25], ttl=1800)
-    except Exception:
-        pass
+    except TooManyRequestsError as exc:
+        logger.warning("Google Trends rate limit hit for trending searches: %s", exc)
+    except Exception as exc:
+        logger.error("Google Trends trending_searches failed: %s", exc)
 
     return results
 
@@ -182,6 +222,11 @@ def get_related_queries(keyword: str) -> Dict[str, List[Dict]]:
     result: Dict[str, List[Dict]] = {'rising': [], 'top': []}
     pt = _client()
     if not pt:
+        logger.warning(
+            "Google Trends client unavailable (%s) — skipping related queries for '%s'",
+            _unavailable_reason(),
+            keyword,
+        )
         return result
 
     try:
@@ -197,8 +242,16 @@ def get_related_queries(keyword: str) -> Dict[str, List[Dict]]:
                         for _, row in df.head(10).iterrows()
                     ]
         cache.set(cache_key, result, ttl=1800)
-    except Exception:
-        pass
+    except TooManyRequestsError as exc:
+        logger.warning(
+            "Google Trends rate limit hit for related queries '%s': %s", keyword, exc
+        )
+        result['error'] = 'Google Trends rate limit reached — please retry later'
+    except Exception as exc:
+        logger.error(
+            "Google Trends related_queries failed for '%s': %s", keyword, exc
+        )
+        result['error'] = str(exc)
 
     return result
 
@@ -213,6 +266,11 @@ def get_regional_interest(keyword: str) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
     pt = _client()
     if not pt:
+        logger.warning(
+            "Google Trends client unavailable (%s) — skipping regional interest for '%s'",
+            _unavailable_reason(),
+            keyword,
+        )
         return results
 
     try:
@@ -228,7 +286,47 @@ def get_regional_interest(keyword: str) -> List[Dict[str, Any]]:
                     'value':   int(row.get(keyword, 0)),
                 })
         cache.set(cache_key, results, ttl=1800)
-    except Exception:
-        pass
+    except TooManyRequestsError as exc:
+        logger.warning(
+            "Google Trends rate limit hit for regional interest '%s': %s", keyword, exc
+        )
+    except Exception as exc:
+        logger.error(
+            "Google Trends interest_by_region failed for '%s': %s", keyword, exc
+        )
 
     return results
+
+
+def get_status() -> Dict[str, Any]:
+    """
+    Probe Google Trends connectivity.
+
+    Returns a dict with keys:
+      - available (bool): True if the pytrends library is installed
+      - connected (bool): True if a TrendReq client could be initialised
+                          (i.e. the Google cookie request succeeded)
+      - error (str | None): human-readable reason when connected=False
+    """
+    status: Dict[str, Any] = {
+        'available': _AVAILABLE,
+        'connected': False,
+        'error': None,
+    }
+    if not _AVAILABLE:
+        status['error'] = (
+            'pytrends is not installed. '
+            'Run: pip install "pytrends>=4.9.2"'
+        )
+        return status
+
+    pt = _client()
+    if pt is None:
+        status['error'] = (
+            'Could not connect to Google Trends. '
+            'Check your network connection or try again later.'
+        )
+        return status
+
+    status['connected'] = True
+    return status

@@ -63,7 +63,8 @@ from app.data_sources.reddit_fashion     import (
 from app.data_sources.google_trends_fashion import (
     get_interest_over_time, get_trending_fashion_searches,
     get_aesthetic_group_interest, get_all_group_scores,
-    get_related_queries, AESTHETIC_GROUPS,
+    get_related_queries, get_status as google_trends_status,
+    AESTHETIC_GROUPS,
 )
 from app.data_sources.wikipedia_fashion  import (
     get_top_fashion_articles, get_fashion_designer_articles,
@@ -289,6 +290,12 @@ def google_trends():
         kw_list = [k.strip() for k in keywords.split(',') if k.strip()][:5]
         return jsonify(get_interest_over_time(kw_list, timeframe=tf, geo=geo))
     return jsonify(get_aesthetic_group_interest('viral_aesthetics'))
+
+
+@api_bp.route('/google-trends/status')
+def google_trends_check():
+    """Check whether the Google Trends integration is operational."""
+    return jsonify(google_trends_status())
 
 
 @api_bp.route('/aesthetics')
